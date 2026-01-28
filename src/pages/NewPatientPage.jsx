@@ -21,7 +21,7 @@ const NewPatientPage = () => {
                 <div className="max-w-[800px] mx-auto flex flex-col">
                     
                     {/* Botón de Menú para celular (Solo visible en pantallas pequeñas) */}
-                    <div className="md:hidden mb-4">
+                    <div className="md:hidden mb-4 flex items-center">
                         <button 
                             onClick={() => setIsMenuOpen(true)}
                             className="p-2 -ml-2 text-gray-600 dark:text-gray-300 hover:bg-white/50 dark:hover:bg-slate-800 rounded-lg transition-colors"
@@ -33,9 +33,9 @@ const NewPatientPage = () => {
                     <div className="flex flex-wrap justify-between gap-3 px-2 md:p-4 mb-6">
                         <div className="flex flex-col gap-2">
                             {/* Título responsivo: text-2xl en móvil, text-4xl en PC */}
-                            <h1 className="text-[#0d141b] dark:text-white text-2xl md:text-4xl font-black leading-tight">
+                            <p className="text-[#0d141b] dark:text-white text-2xl md:text-4xl font-black leading-tight">
                                 Registro de Nuevo Paciente
-                            </h1>
+                            </p>
                             <p className="text-[#4c739a] dark:text-slate-400 text-sm md:text-base font-normal">
                                 Ingrese los datos personales para dar de alta al paciente.
                             </p>
@@ -47,7 +47,7 @@ const NewPatientPage = () => {
                         <form className="flex flex-col gap-5 md:gap-6" onSubmit={(e) => { e.preventDefault(); navigate('/pacientes'); }}>
                             
                             <div className="flex flex-col gap-2">
-                                <label className="text-[#0d141b] dark:text-slate-200 text-sm md:text-base font-medium">Nombre Completo</label>
+                                <label className="text-[#0d141b] dark:text-slate-200 text-sm md:text-base font-medium pb-1 md:pb-2">Nombre Completo</label>
                                 <input 
                                     className="form-input w-full rounded-lg border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 h-12 md:h-14 p-4 dark:text-white text-sm md:text-base" 
                                     placeholder="Ej: Juan Pérez" 
@@ -57,7 +57,7 @@ const NewPatientPage = () => {
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-6">
                                 <div className="flex flex-col gap-2">
-                                    <label className="text-[#0d141b] dark:text-slate-200 text-sm md:text-base font-medium">DNI</label>
+                                    <label className="text-[#0d141b] dark:text-slate-200 text-sm md:text-base font-medium pb-1 md:pb-2">DNI</label>
                                     <input 
                                         className="form-input w-full rounded-lg border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 h-12 md:h-14 p-4 dark:text-white text-sm" 
                                         placeholder="Número de documento" 
@@ -65,7 +65,7 @@ const NewPatientPage = () => {
                                     />
                                 </div>
                                 <div className="flex flex-col gap-2">
-                                    <label className="text-[#0d141b] dark:text-slate-200 text-sm md:text-base font-medium">Teléfono</label>
+                                    <label className="text-[#0d141b] dark:text-slate-200 text-sm md:text-base font-medium pb-1 md:pb-2">Teléfono</label>
                                     <input 
                                         className="form-input w-full rounded-lg border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 h-12 md:h-14 p-4 dark:text-white text-sm" 
                                         placeholder="Ej: +54 11 1234 5678" 
@@ -75,7 +75,7 @@ const NewPatientPage = () => {
                             </div>
 
                             <div className="flex flex-col gap-2">
-                                <label className="text-[#0d141b] dark:text-slate-200 text-sm md:text-base font-medium">Correo Electrónico</label>
+                                <label className="text-[#0d141b] dark:text-slate-200 text-sm md:text-base font-medium pb-1 md:pb-2">Correo Electrónico</label>
                                 <input 
                                     className="form-input w-full rounded-lg border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 h-12 md:h-14 p-4 dark:text-white text-sm" 
                                     placeholder="ejemplo@correo.com" 
@@ -84,7 +84,7 @@ const NewPatientPage = () => {
                             </div>
 
                             <div className="flex flex-col gap-2">
-                                <label className="text-[#0d141b] dark:text-slate-200 text-sm md:text-base font-medium">Obra Social / Prepaga</label>
+                                <label className="text-[#0d141b] dark:text-slate-200 text-sm md:text-base font-medium pb-1 md:pb-2">Obra Social / Prepaga</label>
                                 <input 
                                     className="form-input w-full rounded-lg border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 h-12 md:h-14 p-4 dark:text-white text-sm" 
                                     placeholder="Ej: OSDE 210, Particular" 
@@ -92,7 +92,7 @@ const NewPatientPage = () => {
                                 />
                             </div>
 
-                            {/* Botones de acción: Cambian a columna en móviles pequeños para que no se corten */}
+                            {/* Botones: Se ponen en columna en móviles pequeños para evitar cortes */}
                             <div className="flex flex-col-reverse sm:flex-row items-center justify-end gap-3 md:gap-4 mt-4 pt-6 border-t border-slate-100 dark:border-slate-800">
                                 <button 
                                     onClick={() => navigate('/pacientes')} 
