@@ -21,9 +21,9 @@ app.get('/api/pacientes', async (req, res) => {
 });
 
 app.post('/api/pacientes', async (req, res) => {
-  const { nombre, dni, telefono, email } = req.body;
+  const { nombre, dni, telefono, email, colorType } = req.body;
   const nuevo = await prisma.paciente.create({
-    data: { nombre, dni, telefono, email }
+    data: { nombre, dni, telefono, email, colorType } // <--- Guardamos el color
   });
   res.json(nuevo);
 });
