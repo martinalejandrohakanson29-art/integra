@@ -13,6 +13,7 @@ model Paciente {
   dni             String   @unique
   telefono        String?
   email           String?
+  colorType       String   @default("default") // <--- Agregamos esto
   fechaRegistro   DateTime @default(now())
   turnos          Turno[]
 }
@@ -22,7 +23,7 @@ model Turno {
   fecha           String
   hora            String
   duracion        Int      @default(30)
-  colorType       String   @default("default")
+  // El color ya no lo guardamos aquí, lo leeremos del paciente
   tipoTratamiento String?
   pacienteId      String
   paciente        Paciente @relation(fields: [pacienteId], references: [id], onDelete: Cascade)
