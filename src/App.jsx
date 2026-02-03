@@ -12,10 +12,10 @@ function App() {
   return (
     <Router>
       <Routes>
-        {/* Ruta de Login (Sin Sidebar) */}
+        {/* El Login va solo, sin panel lateral */}
         <Route path="/login" element={<LoginPage />} />
 
-        {/* Rutas con Sidebar (Dentro de MainLayout) */}
+        {/* Todas estas rutas van DENTRO del MainLayout automáticamente */}
         <Route element={<MainLayout />}>
           <Route path="/agenda" element={<AgendaPage />} />
           <Route path="/pacientes" element={<PatientListPage />} />
@@ -23,7 +23,7 @@ function App() {
           <Route path="/pacientes/:id/historia" element={<PatientHistoryPage />} />
           <Route path="/turnos/:id/editar" element={<EditAppointmentPage />} />
           
-          {/* Redirección por defecto */}
+          {/* Si entras a la raíz, te manda a la agenda */}
           <Route path="/" element={<Navigate to="/agenda" replace />} />
         </Route>
       </Routes>
