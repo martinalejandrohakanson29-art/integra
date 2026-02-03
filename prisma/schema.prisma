@@ -9,11 +9,17 @@ generator client {
 
 model Paciente {
   id              String   @id @default(uuid())
-  nombre          String
+  nombre          String   // Nombre y Apellido
   dni             String   @unique
   telefono        String?
   email           String?
-  colorType       String   @default("default") // <--- Agregamos esto
+  fechaNacimiento String?  // Formato YYYY-MM-DD
+  direccion       String?
+  obraSocial      String?  // Importante para odontología
+  nroAfiliado     String?
+  antecedentes    String?  // Alergias, enfermedades crónicas, etc.
+  observaciones   String?  // Notas generales
+  colorType       String   @default("default")
   fechaRegistro   DateTime @default(now())
   turnos          Turno[]
 }
@@ -23,7 +29,6 @@ model Turno {
   fecha           String
   hora            String
   duracion        Int      @default(30)
-  // El color ya no lo guardamos aquí, lo leeremos del paciente
   tipoTratamiento String?
   pacienteId      String
   paciente        Paciente @relation(fields: [pacienteId], references: [id], onDelete: Cascade)
