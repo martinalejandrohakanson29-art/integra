@@ -1,24 +1,15 @@
 import React, { useState } from 'react';
-import { useNavigate, Outlet, useLocation } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import DarkModeToggle from './DarkModeToggle';
 
-const MainLayout = () => {
+const MainLayout = ({ children, activePage, title, extraHeader }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const navigate = useNavigate();
-  const location = useLocation();
-
-  // Función simple para poner títulos automáticos según la ruta
-  const getTitle = () => {
-    if (location.pathname.includes('/agenda')) return 'Agenda Semanal';
-    if (location.pathname.includes('/pacientes')) return 'Gestión de Pacientes';
-    if (location.pathname.includes('/historia')) return 'Historia Clínica';
-    return 'Integra';
-  };
 
   return (
     <div className="flex h-screen overflow-hidden bg-slate-50 dark:bg-slate-950">
       <Sidebar 
+        activePage={activePage}
         isOpen={isMenuOpen} 
         onClose={() => setIsMenuOpen(false)} 
       />
@@ -36,19 +27,20 @@ const MainLayout = () => {
 
             <div className="flex flex-col">
               <h1 className="text-lg md:text-2xl font-bold text-gray-800 dark:text-white leading-tight">
-                {getTitle()}
+                {title}
               </h1>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          {/* Aquí aparecerán los botones que cada página necesite */}
+          <div className="flex items-center gap-4">
+            {extraHeader}
             <DarkModeToggle />
           </div>
         </header>
 
         <main className="flex-1 overflow-hidden p-3 md:p-6">
-          {/* Aquí es donde se renderizan las páginas (Agenda, Pacientes, etc) */}
-          <Outlet />
+          {children}
         </main>
       </div>
     </div>
