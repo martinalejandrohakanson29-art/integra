@@ -22,14 +22,13 @@ const colorOptions = {
 };
 
 const AgendaPage = () => {
-  // Obtenemos el profesional logueado desde el localStorage
   const user = JSON.parse(localStorage.getItem('user'));
   const [selectedDate, setSelectedDate] = useState(startOfToday());
   const [searchTerm, setSearchTerm] = useState('');
   const [appointments, setAppointments] = useState([]);
   const [patients, setPatients] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [filterProf, setFilterProf] = useState('all'); // Estado para el filtro por profesional
+  const [filterProf, setFilterProf] = useState('all');
 
   const loadData = async () => {
     try {
@@ -66,7 +65,6 @@ const AgendaPage = () => {
     const data = JSON.parse(e.dataTransfer.getData("payload"));
 
     if (type === "patient") {
-      // Se crea el turno asignándolo automáticamente al profesional logueado
       const res = await fetch('/api/turnos', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -105,7 +103,6 @@ const AgendaPage = () => {
     setAppointments(prev => prev.map(a => a.id === id ? actualizado : a));
   };
 
-  // Lógica de filtrado de turnos
   const filteredAppointments = filterProf === 'all' 
     ? appointments 
     : appointments.filter(a => a.profesionalId === filterProf);
@@ -116,7 +113,6 @@ const AgendaPage = () => {
 
   const headerActions = (
     <div className="flex items-center gap-4">
-      {/* Selector de Filtro por Profesional */}
       <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl border border-slate-200 dark:border-slate-700">
         <Filter className="w-4 h-4 ml-2 text-slate-400" />
         <select 
@@ -141,7 +137,6 @@ const AgendaPage = () => {
     <MainLayout title="Agenda de Turnos" activePage="agenda" extraHeader={headerActions}>
       <div className="flex h-full gap-4 overflow-hidden">
         
-        {/* PANEL IZQUIERDO */}
         <div className="w-72 flex flex-col gap-4 overflow-hidden">
           <div className="flex-1 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 flex flex-col overflow-hidden">
             <div className="p-4 border-b border-slate-100 dark:border-slate-700">
@@ -190,7 +185,6 @@ const AgendaPage = () => {
           </div>
         </div>
 
-        {/* GRILLA AGENDA */}
         <div className="flex-1 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden flex flex-col min-w-[800px] relative">
           <div className="grid grid-cols-[80px_1fr_1fr_1fr_1fr_1fr] border-b border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/50 sticky top-0 z-20">
             <div className="p-3 border-r border-slate-200"></div>
@@ -229,17 +223,16 @@ const AgendaPage = () => {
                             <p className="text-[9px] font-medium opacity-80">{appointment.duracion} min</p>
                           </div>
                           
-                          {/* Información del Profesional */}
-                          <div className="flex items-center gap-1 mt-1 pt-1 border-t border-black/5">
-                            <div className="w-4 h-4 rounded-full bg-white/50 flex items-center justify-center text-[8px] font-black">
+                          {/* Información del Profesional - Texto negro y normal */}
+                          <div className="flex items-center gap-1.5 mt-1 pt-1.5 border-t border-black/10">
+                            <div className="w-4 h-4 rounded-full bg-white/60 flex items-center justify-center text-[9px] font-bold text-slate-800">
                               {appointment.profesional?.nombre ? appointment.profesional.nombre.charAt(0) : '?'}
                             </div>
-                            <span className="text-[8px] font-bold uppercase truncate">
+                            <span className="text-[9px] font-normal text-slate-900 truncate">
                               {appointment.profesional?.nombre || 'Sin asignar'}
                             </span>
                           </div>
 
-                          {/* BOTONES DE REDIMENSIONAR */}
                           <div className="absolute -bottom-3 left-0 right-0 flex justify-center opacity-0 group-hover:opacity-100 transition-opacity z-20">
                             <div className="flex gap-1 bg-white dark:bg-slate-700 rounded-full shadow-lg border border-slate-200 p-0.5 scale-75">
                               <button 
