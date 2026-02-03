@@ -7,13 +7,12 @@ import {
   User,
   GripVertical,
   ChevronDown,
-  Palette, // Importamos el icono de paleta
-  X // Importamos icono de cerrar para el menú
+  Palette,
+  X
 } from 'lucide-react';
 import { format, addDays, startOfWeek, addWeeks, subWeeks, startOfToday } from 'date-fns';
 import { es } from 'date-fns/locale';
 
-// Definimos nuestra paleta de colores suaves
 const colorOptions = {
   default: { label: 'Neutro', bg: 'bg-indigo-100 dark:bg-indigo-900/40', text: 'text-indigo-700 dark:text-indigo-200', border: 'border-indigo-200 dark:border-indigo-700' },
   green:   { label: 'Confirmado', bg: 'bg-emerald-100 dark:bg-emerald-900/40', text: 'text-emerald-700 dark:text-emerald-200', border: 'border-emerald-200 dark:border-emerald-700' },
@@ -24,22 +23,38 @@ const colorOptions = {
 const AgendaPage = () => {
   const [selectedDate, setSelectedDate] = useState(startOfToday());
   const [searchTerm, setSearchTerm] = useState('');
-  // Estado para controlar qué menú de colores está abierto
   const [activeColorMenuId, setActiveColorMenuId] = useState(null);
-  const menuRef = useRef(null); // Referencia para detectar clics fuera del menú
+  const menuRef = useRef(null);
 
-  // Agregamos la propiedad 'colorType' a los turnos. Por defecto 'default'.
-  const [appointments, setAppointments] = useState([
-    { id: 1, patientName: 'Martin Jakson', date: format(startOfToday(), 'yyyy-MM-dd'), time: '09:00', duration: 60, type: 'Limpieza', colorType: 'default' }
-  ]);
+  // ESTADOS PARA DATOS REALES
+  const [appointments, setAppointments] = useState([]);
+  const [patients, setPatients] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const [patients] = useState([
-    { id: 'p1', name: 'Ana García', dni: '35.123.456' },
-    { id: 'p2', name: 'Juan Pérez', dni: '28.987.654' },
-    { id: 'p3', name: 'Lucía Fernández', dni: '40.555.222' },
-  ]);
+  // 1. CARGAR DATOS DESDE LA API AL INICIAR
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const [resPacientes, resTurnos] = await Promise.all([
+          fetch('/api/pacientes'),
+          fetch('/api/turnos')
+        ]);
+        
+        const dataPacientes = await resPacientes.json();
+        const dataTurnos = await resTurnos.json();
+        
+        setPatients(dataPacientes);
+        setAppointments(dataTurnos);
+      } catch (error) {
+        console.error("Error cargando datos:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadData();
+  }, []);
 
-  // Cerrar el menú de colores si se hace clic fuera de él
+  // Cerrar menú de colores al hacer clic fuera
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (menuRef.current && !menuRef.current.contains(event.target)) {
@@ -52,71 +67,91 @@ const AgendaPage = () => {
 
   const weekStart = startOfWeek(selectedDate, { weekStartsOn: 1 });
   const days = Array.from({ length: 5 }, (_, i) => addDays(weekStart, i));
-
   const timeSlots = [];
   for (let hour = 8; hour <= 20; hour++) {
     timeSlots.push(`${hour.toString().padStart(2, '0')}:00`);
     timeSlots.push(`${hour.toString().padStart(2, '0')}:30`);
   }
 
-  // --- LÓGICA DE TURNOS ---
+  // --- LÓGICA DE PERSISTENCIA (GUARDAR EN BD) ---
+
   const onDragStart = (e, patient) => {
     e.dataTransfer.setData("patient", JSON.stringify(patient));
   };
 
   const onDragOver = (e) => e.preventDefault();
 
-  const onDrop = (e, date, time) => {
+  const onDrop = async (e, date, time) => {
     e.preventDefault();
     const patientData = e.dataTransfer.getData("patient");
     if (patientData) {
       const patient = JSON.parse(patientData);
-      const newAppointment = {
-        id: Date.now(),
-        patientName: patient.name,
-        date: format(date, 'yyyy-MM-dd'),
-        time: time,
-        duration: 30,
-        type: 'Consulta',
-        colorType: 'default' // Color inicial suave
+      
+      const nuevoTurnoData = {
+        fecha: format(date, 'yyyy-MM-dd'),
+        hora: time,
+        duracion: 30,
+        colorType: 'default',
+        pacienteId: patient.id
       };
-      setAppointments(prev => [...prev, newAppointment]);
+
+      try {
+        const response = await fetch('/api/turnos', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(nuevoTurnoData)
+        });
+        const guardado = await response.json();
+        // Agregamos el nombre del paciente para que se vea en la UI
+        setAppointments(prev => [...prev, { ...guardado, paciente: patient }]);
+      } catch (error) {
+        console.error("Error al guardar turno:", error);
+      }
     }
   };
 
-  const handleExtend = (e, id) => {
-    e.stopPropagation();
-    setAppointments(prev => prev.map(app => app.id === id ? { ...app, duration: app.duration + 30 } : app));
+  const updateTurno = async (id, campos) => {
+    try {
+      const response = await fetch(`/api/turnos/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(campos)
+      });
+      const actualizado = await response.json();
+      setAppointments(prev => prev.map(app => app.id === id ? { ...app, ...actualizado } : app));
+    } catch (error) {
+      console.error("Error al actualizar:", error);
+    }
   };
 
-  const handleReduce = (e, id) => {
+  const handleExtend = (e, id, currentDuration) => {
     e.stopPropagation();
-    setAppointments(prev => prev.map(app => (app.id === id && app.duration > 30) ? { ...app, duration: app.duration - 30 } : app));
+    updateTurno(id, { duracion: currentDuration + 30 });
   };
 
-  // --- LÓGICA DE COLORES ---
-  const toggleColorMenu = (e, id) => {
-    e.stopPropagation(); // Evita que el clic se propague al turno
-    setActiveColorMenuId(prevId => (prevId === id ? null : id));
+  const handleReduce = (e, id, currentDuration) => {
+    e.stopPropagation();
+    if (currentDuration > 30) {
+      updateTurno(id, { duracion: currentDuration - 30 });
+    }
   };
 
   const changeAppointmentColor = (e, id, newColorType) => {
     e.stopPropagation();
-    setAppointments(prev => prev.map(app => 
-        app.id === id ? { ...app, colorType: newColorType } : app
-    ));
-    setActiveColorMenuId(null); // Cerrar menú tras seleccionar
+    updateTurno(id, { colorType: newColorType });
+    setActiveColorMenuId(null);
   };
 
   const filteredPatients = patients.filter(p => 
-    p.name.toLowerCase().includes(searchTerm.toLowerCase()) || p.dni.includes(searchTerm)
+    p.nombre.toLowerCase().includes(searchTerm.toLowerCase()) || p.dni.includes(searchTerm)
   );
 
+  if (loading) return <div className="h-full flex items-center justify-center text-slate-500">Cargando Integra...</div>;
+
   return (
-    // Añadimos onClick para cerrar menús al hacer clic en cualquier parte del fondo
     <div className="flex h-full gap-4 overflow-hidden" onClick={() => setActiveColorMenuId(null)}>
       
-      {/* SIDEBAR (Sin cambios) */}
+      {/* SIDEBAR DE PACIENTES REALES */}
       <div className="w-72 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
         <div className="p-4 border-b border-slate-100 dark:border-slate-700">
           <h2 className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-3 flex items-center gap-2">
@@ -135,17 +170,19 @@ const AgendaPage = () => {
             <div key={patient.id} draggable onDragStart={(e) => onDragStart(e, patient)} className="group flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl cursor-grab active:cursor-grabbing hover:border-indigo-400 transition-all">
               <GripVertical className="w-4 h-4 text-slate-300" />
               <div className="overflow-hidden">
-                <p className="text-sm font-bold text-slate-700 dark:text-slate-200 truncate">{patient.name}</p>
+                <p className="text-sm font-bold text-slate-700 dark:text-slate-200 truncate">{patient.nombre}</p>
                 <p className="text-[10px] text-slate-500">{patient.dni}</p>
               </div>
             </div>
           ))}
+          {filteredPatients.length === 0 && (
+            <div className="text-center py-4 text-xs text-slate-400">No hay pacientes. Agrégalos en la sección de Pacientes.</div>
+          )}
         </div>
       </div>
 
-      {/* AGENDA */}
+      {/* AGENDA CON PERSISTENCIA */}
       <div className="flex-1 flex flex-col min-w-0 space-y-4" onClick={e => e.stopPropagation()}>
-        {/* Header Agenda (Sin cambios) */}
         <div className="flex items-center justify-between bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg text-indigo-600">
@@ -164,7 +201,7 @@ const AgendaPage = () => {
 
         <div className="flex-1 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden flex flex-col min-w-[800px] relative">
           
-          {/* Días */}
+          {/* Header Días */}
           <div className="grid grid-cols-[80px_1fr_1fr_1fr_1fr_1fr] border-b border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/50 sticky top-0 z-20">
             <div className="p-3 border-r border-slate-200"></div>
             {days.map((day) => (
@@ -177,18 +214,17 @@ const AgendaPage = () => {
             ))}
           </div>
 
-          {/* Cuerpo con Horas */}
+          {/* Grilla */}
           <div className="flex-1 overflow-y-auto custom-scrollbar">
             {timeSlots.map((time) => (
               <div key={time} className="grid grid-cols-[80px_1fr_1fr_1fr_1fr_1fr] border-b border-slate-100 dark:border-slate-700/50 last:border-0 min-h-[55px]">
-                <div className="flex items-start justify-center pt-2 border-r border-slate-100 dark:border-slate-700/50 bg-slate-50/20">
-                  <span className={`text-[10px] font-bold ${time.endsWith(':30') ? 'text-slate-300 dark:text-slate-600' : 'text-slate-500 dark:text-slate-400'}`}>{time}</span>
+                <div className="flex items-start justify-center pt-2 border-r border-slate-100 dark:border-slate-700/50 bg-slate-50/20 text-[10px] font-bold text-slate-400">
+                  <span className={`${time.endsWith(':30') ? 'opacity-30' : 'opacity-100'}`}>{time}</span>
                 </div>
                 
                 {days.map((day) => {
                   const dayStr = format(day, 'yyyy-MM-dd');
-                  const appointment = appointments.find(a => a.date === dayStr && a.time === time);
-                  // Obtenemos los estilos según el tipo de color del turno
+                  const appointment = appointments.find(a => a.fecha === dayStr && a.hora === time);
                   const colors = appointment ? colorOptions[appointment.colorType] : colorOptions.default;
                   const isMenuOpen = appointment && activeColorMenuId === appointment.id;
 
@@ -196,50 +232,39 @@ const AgendaPage = () => {
                     <div key={`${day}-${time}`} onDragOver={onDragOver} onDrop={(e) => onDrop(e, day, time)} className="relative border-r border-slate-100 dark:border-slate-700/50 last:border-0">
                       {appointment && (
                         <div 
-                          style={{ height: `calc(${(appointment.duration / 30) * 100}% - 6px)`, zIndex: isMenuOpen ? 30 : 10 }}
-                          // Aplicamos los colores dinámicos aquí
-                          className={`absolute inset-x-1 top-0.5 rounded-lg px-2 py-1.5 shadow-sm border flex flex-col justify-between group overflow-visible transition-all ${colors.bg} ${colors.text} ${colors.border}`}
+                          style={{ height: `calc(${(appointment.duracion / 30) * 100}% - 6px)`, zIndex: isMenuOpen ? 30 : 10 }}
+                          className={`absolute inset-x-1 top-0.5 rounded-lg px-2 py-1.5 shadow-sm border flex flex-col justify-between group transition-all ${colors.bg} ${colors.text} ${colors.border}`}
                         >
                           <div className="flex justify-between items-start gap-1">
                             <div className="leading-tight overflow-hidden">
-                              <p className="text-[11px] font-bold truncate mb-0.5">{appointment.patientName}</p>
+                              <p className="text-[11px] font-bold truncate mb-0.5">
+                                {appointment.paciente?.nombre || 'Paciente'}
+                              </p>
                               <p className={`text-[9px] font-medium opacity-90 inline-block px-1 rounded ${appointment.colorType === 'default' ? 'bg-white/50 dark:bg-slate-800/30' : 'bg-white/30'}`}>
-                                {appointment.duration} min
+                                {appointment.duracion} min
                               </p>
                             </div>
                             
-                            {/* BOTÓN DE PALETA DE COLORES */}
-                            <button 
-                              onClick={(e) => toggleColorMenu(e, appointment.id)}
-                              className={`p-1 rounded-full hover:bg-white/30 transition-colors flex-shrink-0 opacity-60 group-hover:opacity-100 ${isMenuOpen ? 'opacity-100 bg-white/30' : ''}`}
-                            >
+                            <button onClick={(e) => toggleColorMenu(e, appointment.id)} className="p-1 rounded-full hover:bg-white/30 transition-colors opacity-60 group-hover:opacity-100">
                              {isMenuOpen ? <X className="w-3 h-3" /> : <Palette className="w-3 h-3" />} 
                             </button>
                           </div>
 
-                          {/* MENÚ FLOTANTE DE SELECCIÓN DE COLOR */}
+                          {/* Menú de colores */}
                           {isMenuOpen && (
-                            <div ref={menuRef} className="absolute top-7 right-0 bg-white dark:bg-slate-800 rounded-lg shadow-xl border border-slate-200 dark:border-slate-700 p-2 z-40 animate-in fade-in zoom-in duration-200 flex gap-2" onClick={e => e.stopPropagation()}>
+                            <div ref={menuRef} className="absolute top-7 right-0 bg-white dark:bg-slate-800 rounded-lg shadow-xl border border-slate-200 dark:border-slate-700 p-2 z-40 flex gap-2 animate-in zoom-in duration-150">
                               {Object.entries(colorOptions).map(([type, style]) => (
-                                <button
-                                  key={type}
-                                  onClick={(e) => changeAppointmentColor(e, appointment.id, type)}
-                                  className={`w-5 h-5 rounded-full border transition-transform hover:scale-110 ${style.bg} ${style.border} flex items-center justify-center group/tooltip relative`}
-                                >
-                                    {/* Tooltip simple */}
-                                    <span className="absolute bottom-full mb-1 left-1/2 -translate-x-1/2 text-[9px] bg-slate-800 text-white px-1.5 rounded opacity-0 group-hover/tooltip:opacity-100 pointer-events-none whitespace-nowrap">{style.label}</span>
-                                    {appointment.colorType === type && <div className={`w-2 h-2 rounded-full ${style.text.replace('text-', 'bg-')}`} />}
-                                </button>
+                                <button key={type} onClick={(e) => changeAppointmentColor(e, appointment.id, type)} className={`w-5 h-5 rounded-full border ${style.bg} ${style.border} hover:scale-110 transition-transform`} />
                               ))}
                             </div>
                           )}
 
-                          {/* MANILLAR PARA ESTIRAR */}
+                          {/* Estirar turno */}
                           <div className="absolute -bottom-3 left-0 right-0 flex justify-center opacity-0 group-hover:opacity-100 transition-opacity z-20">
-                            <div className="flex gap-1 bg-white dark:bg-slate-700 rounded-full shadow-lg border border-slate-200 dark:border-slate-600 p-0.5 scale-90">
-                              <button onClick={(e) => handleReduce(e, appointment.id)} className="w-5 h-5 flex items-center justify-center text-indigo-600 dark:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-600 rounded-full text-xs font-black"> - </button>
-                              <div className="w-px h-3 bg-slate-200 dark:bg-slate-600 self-center"></div>
-                              <button onClick={(e) => handleExtend(e, appointment.id)} className="w-5 h-5 flex items-center justify-center text-indigo-600 dark:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-600 rounded-full"><ChevronDown className="w-3.5 h-3.5" /></button>
+                            <div className="flex gap-1 bg-white dark:bg-slate-700 rounded-full shadow-lg border border-slate-200 p-0.5 scale-90">
+                              <button onClick={(e) => handleReduce(e, appointment.id, appointment.duracion)} className="w-5 h-5 flex items-center justify-center text-indigo-600 text-xs font-black"> - </button>
+                              <div className="w-px h-3 bg-slate-200 self-center"></div>
+                              <button onClick={(e) => handleExtend(e, appointment.id, appointment.duracion)} className="w-5 h-5 flex items-center justify-center text-indigo-600"><ChevronDown className="w-3.5 h-3.5" /></button>
                             </div>
                           </div>
                         </div>
