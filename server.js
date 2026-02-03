@@ -56,6 +56,17 @@ app.patch('/api/turnos/:id', async (req, res) => {
   res.json(actualizado);
 });
 
+// Borrar un turno
+app.delete('/api/turnos/:id', async (req, res) => {
+  const { id } = req.params;
+  try {
+    await prisma.turno.delete({ where: { id } });
+    res.json({ message: "Turno eliminado" });
+  } catch (error) {
+    res.status(500).json({ error: "No se pudo eliminar el turno" });
+  }
+});
+
 // Servir los archivos estáticos de React (Vite)
 app.use(express.static(path.join(__dirname, 'dist')));
 
