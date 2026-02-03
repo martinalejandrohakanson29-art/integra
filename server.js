@@ -8,14 +8,13 @@ const prisma = new PrismaClient();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Configuración para servir la web de React
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 app.use(cors());
 app.use(express.json());
 
-// --- ENDPOINTS PARA PACIENTES ---
+// --- PACIENTES ---
 app.get('/api/pacientes', async (req, res) => {
   const pacientes = await prisma.paciente.findMany();
   res.json(pacientes);
@@ -29,7 +28,13 @@ app.post('/api/pacientes', async (req, res) => {
   res.json(nuevo);
 });
 
-// --- ENDPOINTS PARA TURNOS ---
+app.delete('/api/pacientes/:id', async (req, res) => {
+  const { id } = req.params;
+  await prisma.paciente.delete({ where: { id } });
+  res.json({ message: "Paciente eliminado" });
+});
+
+// --- TURNOS ---
 app.get('/api/turnos', async (req, res) => {
   const turnos = await prisma.turno.findMany({
     include: { paciente: true }
@@ -39,47 +44,36 @@ app.get('/api/turnos', async (req, res) => {
 
 app.post('/api/turnos', async (req, res) => {
   const { fecha, hora, duracion, colorType, pacienteId } = req.body;
-  const nuevoTurno = await prisma.turno.create({
-    data: { fecha, hora, duracion, colorType, pacienteId }
+  const nuevo = await prisma.turno.create({
+    data: { fecha, hora, duracion, colorType, pacienteId },
+    include: { paciente: true }
   });
-  res.json(nuevoTurno);
+  res.json(nuevo);
 });
 
-// Actualizar duración o color del turno
+// ACTUALIZADO: Ahora acepta fecha y hora para poder mover turnos
 app.patch('/api/turnos/:id', async (req, res) => {
   const { id } = req.params;
-  const { duracion, colorType } = req.body;
+  const { fecha, hora, duracion, colorType } = req.body;
   const actualizado = await prisma.turno.update({
     where: { id },
-    data: { duracion, colorType }
+    data: { fecha, hora, duracion, colorType },
+    include: { paciente: true }
   });
   res.json(actualizado);
 });
 
-// Borrar un turno
 app.delete('/api/turnos/:id', async (req, res) => {
   const { id } = req.params;
-  try {
-    await prisma.turno.delete({ where: { id } });
-    res.json({ message: "Turno eliminado" });
-  } catch (error) {
-    res.status(500).json({ error: "No se pudo eliminar el turno" });
-  }
+  await prisma.turno.delete({ where: { id } });
+  res.json({ message: "Turno eliminado" });
 });
 
-// Servir los archivos estáticos de React (Vite)
 app.use(express.static(path.join(__dirname, 'dist')));
-
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
 
 app.listen(PORT, () => {
   console.log(`Servidor Integra corriendo en puerto ${PORT}`);
-});
-
-app.delete('/api/pacientes/:id', async (req, res) => {
-  const { id } = req.params;
-  await prisma.paciente.delete({ where: { id } });
-  res.json({ message: "Eliminado correctamente" });
 });
