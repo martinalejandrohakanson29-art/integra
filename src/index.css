@@ -1,15 +1,25 @@
 @import "tailwindcss";
 @config "../tailwind.config.js";
 
-
-body {
-  font-family: 'Inter', sans-serif;
+/* 1. Normalización del tamaño base para evitar fuentes gigantes */
+html {
+  font-size: 16px; /* Asegura que 1rem sea siempre 16px */
 }
 
+/* 2. Estilos globales del cuerpo y suavizado de tipografía */
+body {
+  font-family: 'Inter', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  @apply bg-slate-50 dark:bg-slate-950;
+}
+
+/* 3. Configuración de Material Symbols */
 .material-symbols-outlined {
   font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
 }
 
+/* 4. Scrollbar personalizada (Custom Scrollbar) */
 .custom-scrollbar::-webkit-scrollbar {
   width: 8px;
   height: 8px;
@@ -28,6 +38,7 @@ body {
   background-color: #475569;
 }
 
+/* 5. Utilidades para modales */
 .modal-overlay {
   background-color: rgba(0, 0, 0, 0.5);
 }
