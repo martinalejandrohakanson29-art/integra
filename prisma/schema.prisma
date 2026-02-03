@@ -1,0 +1,30 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("postgresql://postgres:ebqdyYDiYbeLsqtnmvmAanpJVmtLZVsP@postgres.railway.internal:5432/railway")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Paciente {
+  id              String   @id @default(uuid())
+  nombre          String
+  dni             String   @unique
+  telefono        String?
+  email           String?
+  fechaRegistro   DateTime @default(now())
+  turnos          Turno[]
+}
+
+model Turno {
+  id              String   @id @default(uuid())
+  fecha           String
+  hora            String
+  duracion        Int      @default(30)
+  colorType       String   @default("default")
+  tipoTratamiento String?
+  pacienteId      String
+  paciente        Paciente @relation(fields: [pacienteId], references: [id], onDelete: Cascade)
+  createdAt       DateTime @default(now())
+}
