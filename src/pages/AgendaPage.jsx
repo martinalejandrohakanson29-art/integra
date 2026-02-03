@@ -1,20 +1,19 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   ChevronLeft, 
   ChevronRight, 
-  Calendar as CalendarIcon, 
   Search, 
   User,
   GripVertical, 
   ChevronDown, 
-  X, 
-  Trash2 
+  Trash2,
+  Filter 
 } from 'lucide-react';
 import { format, addDays, startOfWeek, addWeeks, subWeeks, startOfToday } from 'date-fns';
 import { es } from 'date-fns/locale';
 import MainLayout from '../components/MainLayout';
 
-// Definimos los estilos de colores que coinciden con los que el paciente puede tener
+// Estilos de colores según la preferencia del paciente
 const colorOptions = {
   default: { bg: 'bg-indigo-100 dark:bg-indigo-900/40', text: 'text-indigo-700 dark:text-indigo-200', border: 'border-indigo-200 dark:border-indigo-700' },
   green:   { bg: 'bg-emerald-100 dark:bg-emerald-900/40', text: 'text-emerald-700 dark:text-emerald-200', border: 'border-emerald-200 dark:border-emerald-700' },
@@ -23,13 +22,15 @@ const colorOptions = {
 };
 
 const AgendaPage = () => {
+  // Obtenemos el profesional logueado desde el localStorage
+  const user = JSON.parse(localStorage.getItem('user'));
   const [selectedDate, setSelectedDate] = useState(startOfToday());
   const [searchTerm, setSearchTerm] = useState('');
   const [appointments, setAppointments] = useState([]);
   const [patients, setPatients] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [filterProf, setFilterProf] = useState('all'); // Estado para el filtro por profesional
 
-  // Cargar datos de la base de datos
   const loadData = async () => {
     try {
       const [resP, resT] = await Promise.all([
@@ -54,7 +55,6 @@ const AgendaPage = () => {
     timeSlots.push(`${h.toString().padStart(2, '0')}:00`, `${h.toString().padStart(2, '0')}:30`);
   }
 
-  // --- LÓGICA DE ARRASTRE ---
   const handleDragStart = (e, data, type) => {
     e.dataTransfer.setData("type", type);
     e.dataTransfer.setData("payload", JSON.stringify(data));
@@ -66,7 +66,7 @@ const AgendaPage = () => {
     const data = JSON.parse(e.dataTransfer.getData("payload"));
 
     if (type === "patient") {
-      // Crear nuevo turno heredando el color del paciente
+      // Se crea el turno asignándolo automáticamente al profesional logueado
       const res = await fetch('/api/turnos', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -74,14 +74,14 @@ const AgendaPage = () => {
           fecha: format(date, 'yyyy-MM-dd'), 
           hora: time, 
           duracion: 30, 
-          pacienteId: data.id 
+          pacienteId: data.id,
+          profesionalId: user?.id 
         })
       });
       const nuevo = await res.json();
       setAppointments(prev => [...prev, nuevo]);
     } 
     else if (type === "appointment") {
-      // Mover turno existente a nueva fecha/hora
       const res = await fetch(`/api/turnos/${data.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -95,18 +95,6 @@ const AgendaPage = () => {
     }
   };
 
-  const deleteAppointment = async (e) => {
-    e.preventDefault();
-    const type = e.dataTransfer.getData("type");
-    if (type !== "appointment") return;
-    
-    const data = JSON.parse(e.dataTransfer.getData("payload"));
-    if (window.confirm(`¿Eliminar turno de ${data.paciente?.nombre}?`)) {
-      await fetch(`/api/turnos/${data.id}`, { method: 'DELETE' });
-      setAppointments(prev => prev.filter(a => a.id !== data.id));
-    }
-  };
-
   const updateTurno = async (id, campos) => {
     const res = await fetch(`/api/turnos/${id}`, {
       method: 'PATCH',
@@ -117,20 +105,40 @@ const AgendaPage = () => {
     setAppointments(prev => prev.map(a => a.id === id ? actualizado : a));
   };
 
+  // Lógica de filtrado de turnos
+  const filteredAppointments = filterProf === 'all' 
+    ? appointments 
+    : appointments.filter(a => a.profesionalId === filterProf);
+
   const filteredPatients = patients.filter(p => 
     p.nombre.toLowerCase().includes(searchTerm.toLowerCase()) || p.dni.includes(searchTerm)
   );
 
   const headerActions = (
-    <div className="flex bg-slate-100 dark:bg-slate-700 rounded-lg p-1">
-      <button onClick={() => setSelectedDate(subWeeks(selectedDate, 1))} className="p-1.5 hover:bg-white rounded-md transition-all"><ChevronLeft className="w-4 h-4 text-slate-600 dark:text-slate-300" /></button>
-      <button onClick={() => setSelectedDate(startOfToday())} className="px-3 py-1 text-xs font-bold text-slate-600 dark:text-slate-300">Hoy</button>
-      <button onClick={() => setSelectedDate(addWeeks(selectedDate, 1))} className="p-1.5 hover:bg-white rounded-md transition-all"><ChevronRight className="w-4 h-4 text-slate-600 dark:text-slate-300" /></button>
+    <div className="flex items-center gap-4">
+      {/* Selector de Filtro por Profesional */}
+      <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl border border-slate-200 dark:border-slate-700">
+        <Filter className="w-4 h-4 ml-2 text-slate-400" />
+        <select 
+          className="bg-transparent text-xs font-bold outline-none pr-2 text-slate-600 dark:text-slate-300 cursor-pointer"
+          value={filterProf}
+          onChange={(e) => setFilterProf(e.target.value)}
+        >
+          <option value="all">Ver Todos</option>
+          {user && <option value={user.id}>Mis Turnos</option>}
+        </select>
+      </div>
+
+      <div className="flex bg-slate-100 dark:bg-slate-700 rounded-lg p-1">
+        <button onClick={() => setSelectedDate(subWeeks(selectedDate, 1))} className="p-1.5 hover:bg-white dark:hover:bg-slate-600 rounded-md transition-all"><ChevronLeft className="w-4 h-4 text-slate-600 dark:text-slate-300" /></button>
+        <button onClick={() => setSelectedDate(startOfToday())} className="px-3 py-1 text-xs font-bold text-slate-600 dark:text-slate-300">Hoy</button>
+        <button onClick={() => setSelectedDate(addWeeks(selectedDate, 1))} className="p-1.5 hover:bg-white dark:hover:bg-slate-600 rounded-md transition-all"><ChevronRight className="w-4 h-4 text-slate-600 dark:text-slate-300" /></button>
+      </div>
     </div>
   );
 
   return (
-    <MainLayout title="Agenda Semanal" activePage="agenda" extraHeader={headerActions}>
+    <MainLayout title="Agenda de Turnos" activePage="agenda" extraHeader={headerActions}>
       <div className="flex h-full gap-4 overflow-hidden">
         
         {/* PANEL IZQUIERDO */}
@@ -156,7 +164,7 @@ const AgendaPage = () => {
                   <GripVertical className="w-4 h-4 text-slate-400" />
                   <div className="overflow-hidden leading-tight">
                     <p className="text-sm font-bold text-slate-700 dark:text-slate-200 truncate">{p.nombre}</p>
-                    <p className="text-[10px] text-slate-500">{p.dni}</p>
+                    <p className="text-[10px] text-slate-500 font-mono">{p.dni}</p>
                   </div>
                 </div>
               ))}
@@ -165,11 +173,20 @@ const AgendaPage = () => {
 
           <div 
             onDragOver={e => e.preventDefault()} 
-            onDrop={deleteAppointment}
+            onDrop={async (e) => {
+              e.preventDefault();
+              const type = e.dataTransfer.getData("type");
+              if (type !== "appointment") return;
+              const data = JSON.parse(e.dataTransfer.getData("payload"));
+              if (window.confirm(`¿Eliminar turno de ${data.paciente?.nombre}?`)) {
+                await fetch(`/api/turnos/${data.id}`, { method: 'DELETE' });
+                setAppointments(prev => prev.filter(a => a.id !== data.id));
+              }
+            }}
             className="h-24 bg-rose-50 dark:bg-rose-900/20 border-2 border-dashed border-rose-200 dark:border-rose-800 rounded-xl flex flex-col items-center justify-center gap-2 text-rose-500 transition-all hover:bg-rose-100"
           >
             <Trash2 className="w-6 h-6" />
-            <span className="text-[10px] font-bold uppercase tracking-widest text-center px-4">Arrastrar turno aquí para borrar</span>
+            <span className="text-[10px] font-bold uppercase tracking-widest text-center px-4">Arrastrar para borrar</span>
           </div>
         </div>
 
@@ -187,15 +204,13 @@ const AgendaPage = () => {
 
           <div className="flex-1 overflow-y-auto custom-scrollbar">
             {timeSlots.map((time) => (
-              <div key={time} className="grid grid-cols-[80px_1fr_1fr_1fr_1fr_1fr] border-b border-slate-100 dark:border-slate-700/50 last:border-0 min-h-[55px]">
-                <div className="flex items-start justify-center pt-2 border-r border-slate-100 bg-slate-50/20 text-[10px] font-bold text-slate-400">
-                  <span className={`${time.endsWith(':30') ? 'opacity-30 text-xs font-normal' : 'opacity-100'}`}>{time}</span>
+              <div key={time} className="grid grid-cols-[80px_1fr_1fr_1fr_1fr_1fr] border-b border-slate-100 dark:border-slate-700/50 last:border-0 min-h-[70px]">
+                <div className="flex items-start justify-center pt-2 border-r border-slate-100 text-[10px] font-bold text-slate-400">
+                  <span className={`${time.endsWith(':30') ? 'opacity-30' : 'opacity-100'}`}>{time}</span>
                 </div>
                 {days.map((day) => {
                   const dayStr = format(day, 'yyyy-MM-dd');
-                  const appointment = appointments.find(a => a.fecha === dayStr && a.hora === time);
-                  
-                  // ASIGNAR COLOR SEGÚN EL PACIENTE
+                  const appointment = filteredAppointments.find(a => a.fecha === dayStr && a.hora === time);
                   const colors = (appointment && appointment.paciente && colorOptions[appointment.paciente.colorType]) 
                     ? colorOptions[appointment.paciente.colorType] 
                     : colorOptions.default;
@@ -207,13 +222,23 @@ const AgendaPage = () => {
                           draggable 
                           onDragStart={(e) => handleDragStart(e, appointment, "appointment")}
                           style={{ height: `calc(${(appointment.duracion / 30) * 100}% - 6px)`, zIndex: 10 }}
-                          className={`absolute inset-x-1 top-0.5 rounded-lg px-2 py-1.5 shadow-sm border flex flex-col justify-between group cursor-grab active:cursor-grabbing transition-all ${colors.bg} ${colors.text} ${colors.border}`}
+                          className={`absolute inset-x-1 top-0.5 rounded-xl px-2 py-1.5 shadow-sm border flex flex-col justify-between group cursor-grab active:cursor-grabbing transition-all ${colors.bg} ${colors.text} ${colors.border}`}
                         >
                           <div className="leading-tight overflow-hidden">
-                            <p className="text-[11px] font-bold truncate">{appointment.paciente?.nombre || 'Paciente'}</p>
+                            <p className="text-[11px] font-black truncate uppercase">{appointment.paciente?.nombre || 'Paciente'}</p>
                             <p className="text-[9px] font-medium opacity-80">{appointment.duracion} min</p>
                           </div>
                           
+                          {/* Información del Profesional */}
+                          <div className="flex items-center gap-1 mt-1 pt-1 border-t border-black/5">
+                            <div className="w-4 h-4 rounded-full bg-white/50 flex items-center justify-center text-[8px] font-black">
+                              {appointment.profesional?.nombre ? appointment.profesional.nombre.charAt(0) : '?'}
+                            </div>
+                            <span className="text-[8px] font-bold uppercase truncate">
+                              {appointment.profesional?.nombre || 'Sin asignar'}
+                            </span>
+                          </div>
+
                           {/* BOTONES DE REDIMENSIONAR */}
                           <div className="absolute -bottom-3 left-0 right-0 flex justify-center opacity-0 group-hover:opacity-100 transition-opacity z-20">
                             <div className="flex gap-1 bg-white dark:bg-slate-700 rounded-full shadow-lg border border-slate-200 p-0.5 scale-75">
