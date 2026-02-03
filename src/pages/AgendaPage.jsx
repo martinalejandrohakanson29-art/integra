@@ -24,7 +24,6 @@ const AgendaPage = () => {
   const [patients, setPatients] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // CARGAR DATOS
   const loadData = async () => {
     try {
       const [resP, resT] = await Promise.all([fetch('/api/pacientes'), fetch('/api/turnos')]);
@@ -39,7 +38,7 @@ const AgendaPage = () => {
   const timeSlots = [];
   for (let h = 8; h <= 20; h++) { timeSlots.push(`${h.toString().padStart(2, '0')}:00`, `${h.toString().padStart(2, '0')}:30`); }
 
-  // --- DRAG & DROP LOGIC ---
+  // --- LÓGICA DE ARRASTRE ---
 
   const handleDragStart = (e, data, type) => {
     e.dataTransfer.setData("type", type);
@@ -52,24 +51,32 @@ const AgendaPage = () => {
     const data = JSON.parse(e.dataTransfer.getData("payload"));
 
     if (type === "patient") {
-      // Crear nuevo turno (lo que ya hacíamos)
+      // CREAR NUEVO TURNO
       const res = await fetch('/api/turnos', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fecha: format(date, 'yyyy-MM-dd'), hora: time, duracion: 30, pacienteId: data.id })
+        body: JSON.stringify({ 
+          fecha: format(date, 'yyyy-MM-dd'), 
+          hora: time, 
+          duracion: 30, 
+          pacienteId: data.id 
+        })
       });
       const nuevo = await res.json();
-      setAppointments(prev => [...prev, { ...nuevo, paciente: data }]);
+      setAppointments(prev => [...prev, nuevo]);
     } 
     else if (type === "appointment") {
       // MOVER TURNO EXISTENTE
       const res = await fetch(`/api/turnos/${data.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fecha: format(date, 'yyyy-MM-dd'), hora: time })
+        body: JSON.stringify({ 
+          fecha: format(date, 'yyyy-MM-dd'), 
+          hora: time 
+        })
       });
       const actualizado = await res.json();
-      setAppointments(prev => prev.map(a => a.id === data.id ? { ...a, ...actualizado } : a));
+      setAppointments(prev => prev.map(a => a.id === data.id ? actualizado : a));
     }
   };
 
@@ -79,7 +86,7 @@ const AgendaPage = () => {
     if (type !== "appointment") return;
     
     const data = JSON.parse(e.dataTransfer.getData("payload"));
-    if (window.confirm(`¿Borrar turno de ${data.paciente?.nombre || 'paciente'}?`)) {
+    if (window.confirm(`¿Eliminar turno de ${data.paciente?.nombre}?`)) {
       await fetch(`/api/turnos/${data.id}`, { method: 'DELETE' });
       setAppointments(prev => prev.filter(a => a.id !== data.id));
     }
@@ -91,11 +98,13 @@ const AgendaPage = () => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(campos)
     });
-    const data = await res.json();
-    setAppointments(prev => prev.map(a => a.id === id ? { ...a, ...data } : a));
+    const actualizado = await res.json();
+    setAppointments(prev => prev.map(a => a.id === id ? actualizado : a));
   };
 
-  const filteredPatients = patients.filter(p => p.nombre.toLowerCase().includes(searchTerm.toLowerCase()) || p.dni.includes(searchTerm));
+  const filteredPatients = patients.filter(p => 
+    p.nombre.toLowerCase().includes(searchTerm.toLowerCase()) || p.dni.includes(searchTerm)
+  );
 
   const headerActions = (
     <div className="flex bg-slate-100 dark:bg-slate-700 rounded-lg p-1">
@@ -111,9 +120,8 @@ const AgendaPage = () => {
         
         {/* PANEL IZQUIERDO */}
         <div className="w-72 flex flex-col gap-4 overflow-hidden" onClick={e => e.stopPropagation()}>
-          {/* Lista de pacientes */}
           <div className="flex-1 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 flex flex-col overflow-hidden">
-            <div className="p-4 border-b border-slate-100 dark:border-slate-700">
+            <div className="p-4 border-b border-slate-100 dark:border-slate-700 text-center">
               <h2 className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-3 flex items-center gap-2">
                 <User className="w-4 h-4 text-indigo-500" /> Pacientes
               </h2>
@@ -126,20 +134,22 @@ const AgendaPage = () => {
               {filteredPatients.map(p => (
                 <div key={p.id} draggable onDragStart={(e) => handleDragStart(e, p, "patient")} className="group flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 rounded-xl cursor-grab active:cursor-grabbing hover:border-indigo-400 transition-all shadow-sm">
                   <GripVertical className="w-4 h-4 text-slate-300" />
-                  <div className="overflow-hidden"><p className="text-sm font-bold text-slate-700 dark:text-slate-200 truncate">{p.nombre}</p><p className="text-[10px] text-slate-500">{p.dni}</p></div>
+                  <div className="overflow-hidden leading-tight">
+                    <p className="text-sm font-bold text-slate-700 dark:text-slate-200 truncate">{p.nombre}</p>
+                    <p className="text-[10px] text-slate-500">{p.dni}</p>
+                  </div>
                 </div>
               ))}
             </div>
           </div>
 
-          {/* ZONA DE ELIMINAR (TACHO) */}
           <div 
             onDragOver={e => e.preventDefault()} 
             onDrop={deleteAppointment}
-            className="h-24 bg-rose-50 dark:bg-rose-900/20 border-2 border-dashed border-rose-200 dark:border-rose-800 rounded-xl flex flex-col items-center justify-center gap-2 text-rose-500 transition-all hover:bg-rose-100 dark:hover:bg-rose-900/40"
+            className="h-24 bg-rose-50 dark:bg-rose-900/20 border-2 border-dashed border-rose-200 dark:border-rose-800 rounded-xl flex flex-col items-center justify-center gap-2 text-rose-500 transition-all hover:bg-rose-100"
           >
             <Trash2 className="w-6 h-6" />
-            <span className="text-xs font-bold uppercase tracking-widest">Arrastrar para borrar</span>
+            <span className="text-[10px] font-bold uppercase tracking-widest">Soltar para borrar</span>
           </div>
         </div>
 
@@ -183,14 +193,12 @@ const AgendaPage = () => {
                             </div>
                             <button onClick={(e) => { e.stopPropagation(); setActiveColorMenuId(appointment.id); }} className="p-1 opacity-60 hover:opacity-100"><Palette className="w-3 h-3" /></button>
                           </div>
-                          {/* Botones Resize */}
                           <div className="absolute -bottom-3 left-0 right-0 flex justify-center opacity-0 group-hover:opacity-100 transition-opacity z-20">
                             <div className="flex gap-1 bg-white dark:bg-slate-700 rounded-full shadow-lg border border-slate-200 p-0.5 scale-75">
                               <button onClick={(e) => { e.stopPropagation(); updateTurno(appointment.id, { duracion: appointment.duracion - 30 }) }} className="w-5 h-5 flex items-center justify-center text-indigo-600 text-xs font-black"> - </button>
                               <button onClick={(e) => { e.stopPropagation(); updateTurno(appointment.id, { duracion: appointment.duracion + 30 }) }} className="w-5 h-5 flex items-center justify-center text-indigo-600"><ChevronDown className="w-3.5 h-3.5" /></button>
                             </div>
                           </div>
-                          {/* Menú Colores */}
                           {isMenuOpen && (
                             <div ref={menuRef} className="absolute top-7 right-0 bg-white dark:bg-slate-800 rounded-lg shadow-xl border border-slate-200 p-2 z-40 flex gap-2">
                               {Object.entries(colorOptions).map(([type, style]) => (
