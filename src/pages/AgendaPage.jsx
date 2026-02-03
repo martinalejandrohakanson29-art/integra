@@ -1,45 +1,60 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
-  ChevronLeft, ChevronRight, Calendar as CalendarIcon, Search, User,
-  GripVertical, ChevronDown, Palette, X, Trash2
+  ChevronLeft, 
+  ChevronRight, 
+  Calendar as CalendarIcon, 
+  Search, 
+  User,
+  GripVertical, 
+  ChevronDown, 
+  X, 
+  Trash2 
 } from 'lucide-react';
 import { format, addDays, startOfWeek, addWeeks, subWeeks, startOfToday } from 'date-fns';
 import { es } from 'date-fns/locale';
 import MainLayout from '../components/MainLayout';
 
+// Definimos los estilos de colores que coinciden con los que el paciente puede tener
 const colorOptions = {
-  default: { label: 'Neutro', bg: 'bg-indigo-100 dark:bg-indigo-900/40', text: 'text-indigo-700 dark:text-indigo-200', border: 'border-indigo-200 dark:border-indigo-700' },
-  green:   { label: 'Confirmado', bg: 'bg-emerald-100 dark:bg-emerald-900/40', text: 'text-emerald-700 dark:text-emerald-200', border: 'border-emerald-200 dark:border-emerald-700' },
-  amber:   { label: 'Pendiente', bg: 'bg-amber-100 dark:bg-amber-900/40', text: 'text-amber-800 dark:text-amber-200', border: 'border-amber-200 dark:border-amber-700' },
-  red:     { label: 'Urgente', bg: 'bg-rose-100 dark:bg-rose-900/40',     text: 'text-rose-800 dark:text-rose-200',   border: 'border-rose-200 dark:border-rose-700' },
+  default: { bg: 'bg-indigo-100 dark:bg-indigo-900/40', text: 'text-indigo-700 dark:text-indigo-200', border: 'border-indigo-200 dark:border-indigo-700' },
+  green:   { bg: 'bg-emerald-100 dark:bg-emerald-900/40', text: 'text-emerald-700 dark:text-emerald-200', border: 'border-emerald-200 dark:border-emerald-700' },
+  amber:   { bg: 'bg-amber-100 dark:bg-amber-900/40', text: 'text-amber-800 dark:text-amber-200', border: 'border-amber-200 dark:border-amber-700' },
+  red:     { bg: 'bg-rose-100 dark:bg-rose-900/40',     text: 'text-rose-800 dark:text-rose-200',   border: 'border-rose-200 dark:border-rose-700' },
 };
 
 const AgendaPage = () => {
   const [selectedDate, setSelectedDate] = useState(startOfToday());
   const [searchTerm, setSearchTerm] = useState('');
-  const [activeColorMenuId, setActiveColorMenuId] = useState(null);
-  const menuRef = useRef(null);
-
   const [appointments, setAppointments] = useState([]);
   const [patients, setPatients] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  // Cargar datos de la base de datos
   const loadData = async () => {
     try {
-      const [resP, resT] = await Promise.all([fetch('/api/pacientes'), fetch('/api/turnos')]);
+      const [resP, resT] = await Promise.all([
+        fetch('/api/pacientes'),
+        fetch('/api/turnos')
+      ]);
       setPatients(await resP.json());
       setAppointments(await resT.json());
-    } catch (error) { console.error(error); } finally { setLoading(false); }
+    } catch (error) {
+      console.error("Error al cargar datos:", error);
+    } finally {
+      setLoading(false);
+    }
   };
+
   useEffect(() => { loadData(); }, []);
 
   const weekStart = startOfWeek(selectedDate, { weekStartsOn: 1 });
   const days = Array.from({ length: 5 }, (_, i) => addDays(weekStart, i));
   const timeSlots = [];
-  for (let h = 8; h <= 20; h++) { timeSlots.push(`${h.toString().padStart(2, '0')}:00`, `${h.toString().padStart(2, '0')}:30`); }
+  for (let h = 8; h <= 20; h++) {
+    timeSlots.push(`${h.toString().padStart(2, '0')}:00`, `${h.toString().padStart(2, '0')}:30`);
+  }
 
   // --- LÓGICA DE ARRASTRE ---
-
   const handleDragStart = (e, data, type) => {
     e.dataTransfer.setData("type", type);
     e.dataTransfer.setData("payload", JSON.stringify(data));
@@ -51,7 +66,7 @@ const AgendaPage = () => {
     const data = JSON.parse(e.dataTransfer.getData("payload"));
 
     if (type === "patient") {
-      // CREAR NUEVO TURNO
+      // Crear nuevo turno heredando el color del paciente
       const res = await fetch('/api/turnos', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -66,7 +81,7 @@ const AgendaPage = () => {
       setAppointments(prev => [...prev, nuevo]);
     } 
     else if (type === "appointment") {
-      // MOVER TURNO EXISTENTE
+      // Mover turno existente a nueva fecha/hora
       const res = await fetch(`/api/turnos/${data.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -116,12 +131,12 @@ const AgendaPage = () => {
 
   return (
     <MainLayout title="Agenda Semanal" activePage="agenda" extraHeader={headerActions}>
-      <div className="flex h-full gap-4 overflow-hidden" onClick={() => setActiveColorMenuId(null)}>
+      <div className="flex h-full gap-4 overflow-hidden">
         
         {/* PANEL IZQUIERDO */}
-        <div className="w-72 flex flex-col gap-4 overflow-hidden" onClick={e => e.stopPropagation()}>
+        <div className="w-72 flex flex-col gap-4 overflow-hidden">
           <div className="flex-1 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 flex flex-col overflow-hidden">
-            <div className="p-4 border-b border-slate-100 dark:border-slate-700 text-center">
+            <div className="p-4 border-b border-slate-100 dark:border-slate-700">
               <h2 className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-3 flex items-center gap-2">
                 <User className="w-4 h-4 text-indigo-500" /> Pacientes
               </h2>
@@ -132,8 +147,13 @@ const AgendaPage = () => {
             </div>
             <div className="flex-1 overflow-y-auto p-3 space-y-2 custom-scrollbar">
               {filteredPatients.map(p => (
-                <div key={p.id} draggable onDragStart={(e) => handleDragStart(e, p, "patient")} className="group flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 rounded-xl cursor-grab active:cursor-grabbing hover:border-indigo-400 transition-all shadow-sm">
-                  <GripVertical className="w-4 h-4 text-slate-300" />
+                <div 
+                    key={p.id} 
+                    draggable 
+                    onDragStart={(e) => handleDragStart(e, p, "patient")} 
+                    className={`group flex items-center gap-3 p-3 border border-transparent rounded-xl cursor-grab active:cursor-grabbing hover:border-indigo-400 transition-all shadow-sm ${colorOptions[p.colorType]?.bg || 'bg-slate-50'}`}
+                >
+                  <GripVertical className="w-4 h-4 text-slate-400" />
                   <div className="overflow-hidden leading-tight">
                     <p className="text-sm font-bold text-slate-700 dark:text-slate-200 truncate">{p.nombre}</p>
                     <p className="text-[10px] text-slate-500">{p.dni}</p>
@@ -149,7 +169,7 @@ const AgendaPage = () => {
             className="h-24 bg-rose-50 dark:bg-rose-900/20 border-2 border-dashed border-rose-200 dark:border-rose-800 rounded-xl flex flex-col items-center justify-center gap-2 text-rose-500 transition-all hover:bg-rose-100"
           >
             <Trash2 className="w-6 h-6" />
-            <span className="text-[10px] font-bold uppercase tracking-widest">Soltar para borrar</span>
+            <span className="text-[10px] font-bold uppercase tracking-widest text-center px-4">Arrastrar turno aquí para borrar</span>
           </div>
         </div>
 
@@ -169,13 +189,16 @@ const AgendaPage = () => {
             {timeSlots.map((time) => (
               <div key={time} className="grid grid-cols-[80px_1fr_1fr_1fr_1fr_1fr] border-b border-slate-100 dark:border-slate-700/50 last:border-0 min-h-[55px]">
                 <div className="flex items-start justify-center pt-2 border-r border-slate-100 bg-slate-50/20 text-[10px] font-bold text-slate-400">
-                  <span className={`${time.endsWith(':30') ? 'opacity-30' : 'opacity-100'}`}>{time}</span>
+                  <span className={`${time.endsWith(':30') ? 'opacity-30 text-xs font-normal' : 'opacity-100'}`}>{time}</span>
                 </div>
                 {days.map((day) => {
                   const dayStr = format(day, 'yyyy-MM-dd');
                   const appointment = appointments.find(a => a.fecha === dayStr && a.hora === time);
-                  const colors = appointment ? colorOptions[appointment.colorType] : colorOptions.default;
-                  const isMenuOpen = appointment && activeColorMenuId === appointment.id;
+                  
+                  // ASIGNAR COLOR SEGÚN EL PACIENTE
+                  const colors = (appointment && appointment.paciente && colorOptions[appointment.paciente.colorType]) 
+                    ? colorOptions[appointment.paciente.colorType] 
+                    : colorOptions.default;
 
                   return (
                     <div key={`${day}-${time}`} onDragOver={e => e.preventDefault()} onDrop={e => onDrop(e, day, time)} className="relative border-r border-slate-100 dark:border-slate-700/50 last:border-0">
@@ -183,29 +206,30 @@ const AgendaPage = () => {
                         <div 
                           draggable 
                           onDragStart={(e) => handleDragStart(e, appointment, "appointment")}
-                          style={{ height: `calc(${(appointment.duracion / 30) * 100}% - 6px)`, zIndex: isMenuOpen ? 30 : 10 }}
+                          style={{ height: `calc(${(appointment.duracion / 30) * 100}% - 6px)`, zIndex: 10 }}
                           className={`absolute inset-x-1 top-0.5 rounded-lg px-2 py-1.5 shadow-sm border flex flex-col justify-between group cursor-grab active:cursor-grabbing transition-all ${colors.bg} ${colors.text} ${colors.border}`}
                         >
-                          <div className="flex justify-between items-start">
-                            <div className="leading-tight overflow-hidden">
-                              <p className="text-[11px] font-bold truncate">{appointment.paciente?.nombre || 'Paciente'}</p>
-                              <p className="text-[9px] font-medium opacity-80">{appointment.duracion} min</p>
-                            </div>
-                            <button onClick={(e) => { e.stopPropagation(); setActiveColorMenuId(appointment.id); }} className="p-1 opacity-60 hover:opacity-100"><Palette className="w-3 h-3" /></button>
+                          <div className="leading-tight overflow-hidden">
+                            <p className="text-[11px] font-bold truncate">{appointment.paciente?.nombre || 'Paciente'}</p>
+                            <p className="text-[9px] font-medium opacity-80">{appointment.duracion} min</p>
                           </div>
+                          
+                          {/* BOTONES DE REDIMENSIONAR */}
                           <div className="absolute -bottom-3 left-0 right-0 flex justify-center opacity-0 group-hover:opacity-100 transition-opacity z-20">
                             <div className="flex gap-1 bg-white dark:bg-slate-700 rounded-full shadow-lg border border-slate-200 p-0.5 scale-75">
-                              <button onClick={(e) => { e.stopPropagation(); updateTurno(appointment.id, { duracion: appointment.duracion - 30 }) }} className="w-5 h-5 flex items-center justify-center text-indigo-600 text-xs font-black"> - </button>
-                              <button onClick={(e) => { e.stopPropagation(); updateTurno(appointment.id, { duracion: appointment.duracion + 30 }) }} className="w-5 h-5 flex items-center justify-center text-indigo-600"><ChevronDown className="w-3.5 h-3.5" /></button>
+                              <button 
+                                onClick={(e) => { e.stopPropagation(); updateTurno(appointment.id, { duracion: appointment.duracion - 30 }) }} 
+                                className="w-5 h-5 flex items-center justify-center text-indigo-600 text-xs font-black"
+                              > - </button>
+                              <div className="w-px h-3 bg-slate-200 self-center"></div>
+                              <button 
+                                onClick={(e) => { e.stopPropagation(); updateTurno(appointment.id, { duracion: appointment.duracion + 30 }) }} 
+                                className="w-5 h-5 flex items-center justify-center text-indigo-600"
+                              >
+                                <ChevronDown className="w-3.5 h-3.5" />
+                              </button>
                             </div>
                           </div>
-                          {isMenuOpen && (
-                            <div ref={menuRef} className="absolute top-7 right-0 bg-white dark:bg-slate-800 rounded-lg shadow-xl border border-slate-200 p-2 z-40 flex gap-2">
-                              {Object.entries(colorOptions).map(([type, style]) => (
-                                <button key={type} onClick={(e) => { e.stopPropagation(); updateTurno(appointment.id, { colorType: type }); setActiveColorMenuId(null); }} className={`w-5 h-5 rounded-full border ${style.bg} ${style.border}`} />
-                              ))}
-                            </div>
-                          )}
                         </div>
                       )}
                     </div>
