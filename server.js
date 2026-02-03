@@ -66,3 +66,9 @@ app.get('*', (req, res) => {
 app.listen(PORT, () => {
   console.log(`Servidor Integra corriendo en puerto ${PORT}`);
 });
+
+app.delete('/api/pacientes/:id', async (req, res) => {
+  const { id } = req.params;
+  await prisma.paciente.delete({ where: { id } });
+  res.json({ message: "Eliminado correctamente" });
+});
