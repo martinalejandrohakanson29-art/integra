@@ -7,7 +7,8 @@ import {
   GripVertical, 
   ChevronDown, 
   Trash2,
-  Filter 
+  Filter,
+  Calendar // Importamos el icono de calendario
 } from 'lucide-react';
 import { format, addDays, startOfWeek, addWeeks, subWeeks, startOfToday } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -53,6 +54,15 @@ const AgendaPage = () => {
   for (let h = 8; h <= 20; h++) {
     timeSlots.push(`${h.toString().padStart(2, '0')}:00`, `${h.toString().padStart(2, '0')}:30`);
   }
+
+  // Manejador para el cambio de fecha desde el input nativo
+  const handleDateChange = (e) => {
+    if (e.target.value) {
+      // Creamos la fecha respetando la zona horaria local (evitamos problemas de UTC)
+      const [year, month, day] = e.target.value.split('-').map(Number);
+      setSelectedDate(new Date(year, month - 1, day));
+    }
+  };
 
   const handleDragStart = (e, data, type) => {
     e.dataTransfer.setData("type", type);
@@ -111,8 +121,13 @@ const AgendaPage = () => {
     p.nombre.toLowerCase().includes(searchTerm.toLowerCase()) || p.dni.includes(searchTerm)
   );
 
+  // Formateamos el mes actual para el título (Ej: "Febrero 2026")
+  const currentMonthTitle = format(selectedDate, 'MMMM yyyy', { locale: es });
+  const capitalizedTitle = currentMonthTitle.charAt(0).toUpperCase() + currentMonthTitle.slice(1);
+
   const headerActions = (
     <div className="flex items-center gap-4">
+      {/* Filtro de Profesional */}
       <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl border border-slate-200 dark:border-slate-700">
         <Filter className="w-4 h-4 ml-2 text-slate-400" />
         <select 
@@ -125,16 +140,31 @@ const AgendaPage = () => {
         </select>
       </div>
 
-      <div className="flex bg-slate-100 dark:bg-slate-700 rounded-lg p-1">
+      {/* Navegación de Fechas */}
+      <div className="flex bg-slate-100 dark:bg-slate-700 rounded-lg p-1 items-center">
         <button onClick={() => setSelectedDate(subWeeks(selectedDate, 1))} className="p-1.5 hover:bg-white dark:hover:bg-slate-600 rounded-md transition-all"><ChevronLeft className="w-4 h-4 text-slate-600 dark:text-slate-300" /></button>
         <button onClick={() => setSelectedDate(startOfToday())} className="px-3 py-1 text-xs font-bold text-slate-600 dark:text-slate-300">Hoy</button>
         <button onClick={() => setSelectedDate(addWeeks(selectedDate, 1))} className="p-1.5 hover:bg-white dark:hover:bg-slate-600 rounded-md transition-all"><ChevronRight className="w-4 h-4 text-slate-600 dark:text-slate-300" /></button>
+        
+        {/* Separador vertical */}
+        <div className="w-px h-3 bg-slate-300 dark:bg-slate-600 mx-1"></div>
+
+        {/* Selector de Fecha Oculto (Estilo "Input Invisible") */}
+        <div className="relative p-1.5 hover:bg-white dark:hover:bg-slate-600 rounded-md transition-all cursor-pointer group" title="Ir a fecha específica">
+           <Calendar className="w-4 h-4 text-slate-600 dark:text-slate-300 group-hover:text-indigo-600 transition-colors" />
+           <input 
+              type="date" 
+              onChange={handleDateChange}
+              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+           />
+        </div>
       </div>
     </div>
   );
 
   return (
-    <MainLayout title="Agenda de Turnos" activePage="agenda" extraHeader={headerActions}>
+    // Pasamos el título dinámico al layout
+    <MainLayout title={`Agenda - ${capitalizedTitle}`} activePage="agenda" extraHeader={headerActions}>
       <div className="flex h-full gap-4 overflow-hidden">
         
         <div className="w-72 flex flex-col gap-4 overflow-hidden">
