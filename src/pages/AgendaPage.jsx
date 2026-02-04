@@ -8,7 +8,7 @@ import {
   ChevronDown, 
   Trash2,
   Filter,
-  Calendar // Importamos el icono de calendario
+  Calendar
 } from 'lucide-react';
 import { format, addDays, startOfWeek, addWeeks, subWeeks, startOfToday } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -55,10 +55,22 @@ const AgendaPage = () => {
     timeSlots.push(`${h.toString().padStart(2, '0')}:00`, `${h.toString().padStart(2, '0')}:30`);
   }
 
-  // Manejador para el cambio de fecha desde el input nativo
+  // --- Lógica para el Rango de Fechas ---
+  const startDay = days[0];
+  const endDay = days[4];
+  const isSameMonth = startDay.getMonth() === endDay.getMonth();
+  
+  // Formato inteligente: Si es el mismo mes "10 - 14 Feb", si cambia de mes "28 Feb - 04 Mar"
+  const rangeLabel = isSameMonth 
+    ? `${format(startDay, 'd')} - ${format(endDay, 'd MMM', { locale: es })}`
+    : `${format(startDay, 'd MMM', { locale: es })} - ${format(endDay, 'd MMM', { locale: es })}`;
+
+  // Formato del título principal (Mes y Año)
+  const currentMonthTitle = format(selectedDate, 'MMMM yyyy', { locale: es });
+  const capitalizedTitle = currentMonthTitle.charAt(0).toUpperCase() + currentMonthTitle.slice(1);
+
   const handleDateChange = (e) => {
     if (e.target.value) {
-      // Creamos la fecha respetando la zona horaria local (evitamos problemas de UTC)
       const [year, month, day] = e.target.value.split('-').map(Number);
       setSelectedDate(new Date(year, month - 1, day));
     }
@@ -121,10 +133,6 @@ const AgendaPage = () => {
     p.nombre.toLowerCase().includes(searchTerm.toLowerCase()) || p.dni.includes(searchTerm)
   );
 
-  // Formateamos el mes actual para el título (Ej: "Febrero 2026")
-  const currentMonthTitle = format(selectedDate, 'MMMM yyyy', { locale: es });
-  const capitalizedTitle = currentMonthTitle.charAt(0).toUpperCase() + currentMonthTitle.slice(1);
-
   const headerActions = (
     <div className="flex items-center gap-4">
       {/* Filtro de Profesional */}
@@ -143,13 +151,21 @@ const AgendaPage = () => {
       {/* Navegación de Fechas */}
       <div className="flex bg-slate-100 dark:bg-slate-700 rounded-lg p-1 items-center">
         <button onClick={() => setSelectedDate(subWeeks(selectedDate, 1))} className="p-1.5 hover:bg-white dark:hover:bg-slate-600 rounded-md transition-all"><ChevronLeft className="w-4 h-4 text-slate-600 dark:text-slate-300" /></button>
-        <button onClick={() => setSelectedDate(startOfToday())} className="px-3 py-1 text-xs font-bold text-slate-600 dark:text-slate-300">Hoy</button>
+        
+        {/* BOTÓN CENTRAL CON RANGO DE FECHAS (Clic para ir a HOY) */}
+        <button 
+            onClick={() => setSelectedDate(startOfToday())} 
+            className="px-3 py-1 text-xs font-bold text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors capitalize min-w-[110px]"
+            title="Clic para volver a Hoy"
+        >
+            {rangeLabel}
+        </button>
+
         <button onClick={() => setSelectedDate(addWeeks(selectedDate, 1))} className="p-1.5 hover:bg-white dark:hover:bg-slate-600 rounded-md transition-all"><ChevronRight className="w-4 h-4 text-slate-600 dark:text-slate-300" /></button>
         
-        {/* Separador vertical */}
         <div className="w-px h-3 bg-slate-300 dark:bg-slate-600 mx-1"></div>
 
-        {/* Selector de Fecha Oculto (Estilo "Input Invisible") */}
+        {/* Selector de Fecha */}
         <div className="relative p-1.5 hover:bg-white dark:hover:bg-slate-600 rounded-md transition-all cursor-pointer group" title="Ir a fecha específica">
            <Calendar className="w-4 h-4 text-slate-600 dark:text-slate-300 group-hover:text-indigo-600 transition-colors" />
            <input 
@@ -163,7 +179,6 @@ const AgendaPage = () => {
   );
 
   return (
-    // Pasamos el título dinámico al layout
     <MainLayout title={`Agenda - ${capitalizedTitle}`} activePage="agenda" extraHeader={headerActions}>
       <div className="flex h-full gap-4 overflow-hidden">
         
