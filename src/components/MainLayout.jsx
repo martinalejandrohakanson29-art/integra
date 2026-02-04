@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import DarkModeToggle from './DarkModeToggle';
+import { Menu } from 'lucide-react'; // Nuevo icono
 
 const MainLayout = ({ children, activePage, title, extraHeader }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -22,7 +23,7 @@ const MainLayout = ({ children, activePage, title, extraHeader }) => {
               onClick={() => setIsMenuOpen(true)}
               className="md:hidden p-2 -ml-2 text-gray-600 dark:text-gray-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg"
             >
-              <span className="material-symbols-outlined">menu</span>
+              <Menu className="w-6 h-6" />
             </button>
 
             <div className="flex flex-col">
