@@ -1,9 +1,10 @@
 @import "tailwindcss";
 @config "../tailwind.config.js";
 
-/* 1. Normalización del tamaño base para evitar fuentes gigantes */
+/* 1. Normalización del tamaño base para evitar fuentes gigantes en Safari/iOS */
 html {
-  font-size: 16px; /* Asegura que 1rem sea siempre 16px */
+  font-size: 16px; 
+  -webkit-text-size-adjust: 100%; /* FIX CLAVE PARA MAC/IPHONE */
 }
 
 /* 2. Estilos globales del cuerpo y suavizado de tipografía */
@@ -14,12 +15,24 @@ body {
   @apply bg-slate-50 dark:bg-slate-950;
 }
 
-/* 3. Configuración de Material Symbols */
+/* 3. Configuración ROBUSTA de Material Symbols */
 .material-symbols-outlined {
+  font-family: 'Material Symbols Outlined'; /* Forzamos la familia */
+  font-weight: normal;
+  font-style: normal;
+  font-size: 24px; /* Tamaño base fijo */
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
   font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  user-select: none; /* Evita que se seleccione el texto del icono */
 }
 
-/* 4. Scrollbar personalizada (Custom Scrollbar) */
+/* 4. Scrollbar personalizada */
 .custom-scrollbar::-webkit-scrollbar {
   width: 8px;
   height: 8px;
