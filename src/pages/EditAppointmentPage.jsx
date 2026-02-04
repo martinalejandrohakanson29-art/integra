@@ -1,6 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import DarkModeToggle from '../components/DarkModeToggle';
+import { HeartPulse, X, Trash2 } from 'lucide-react';
 
 const EditAppointmentPage = () => {
     const navigate = useNavigate();
@@ -9,7 +10,7 @@ const EditAppointmentPage = () => {
             <header className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 md:px-10 py-3 gap-4">
                 <div className="flex items-center gap-2 md:gap-8">
                     <div className="flex items-center gap-2 text-slate-900 dark:text-white">
-                        <span className="material-symbols-outlined text-2xl md:text-3xl text-[#137fec]">dentistry</span>
+                        <HeartPulse className="text-[#137fec] w-8 h-8" />
                         <h2 className="text-sm md:text-lg font-bold leading-tight">Integra</h2>
                     </div>
                 </div>
@@ -19,13 +20,11 @@ const EditAppointmentPage = () => {
                 </div>
             </header>
             
-            {/* Ajustado: px-4 en móvil, px-40 solo en pantallas extra grandes */}
             <main className="flex-1 px-4 md:px-20 lg:px-40 py-8 relative">
                 <div className="flex flex-wrap justify-between gap-3 mb-6">
                     <h1 className="text-slate-900 dark:text-white text-2xl md:text-3xl font-bold">Gestión de Turnos</h1>
                 </div>
                 
-                {/* Modal adaptado para scroll interno en pantallas cortas */}
                 <div className="fixed inset-0 modal-overlay z-40 flex items-center justify-center p-2 md:p-4">
                     <div className="bg-white dark:bg-slate-900 w-full max-w-[640px] max-h-[95vh] rounded-xl shadow-2xl flex flex-col overflow-hidden">
                         <div className="flex items-center justify-between p-4 md:p-6 border-b border-slate-100 dark:border-slate-800">
@@ -34,7 +33,7 @@ const EditAppointmentPage = () => {
                                 <p className="text-xs md:text-sm text-slate-500">Paciente: <strong>Luciana Méndez</strong></p>
                             </div>
                             <button onClick={() => navigate('/agenda')} className="text-slate-400 hover:text-slate-900">
-                                <span className="material-symbols-outlined">close</span>
+                                <X className="w-6 h-6" />
                             </button>
                         </div>
                         
@@ -72,7 +71,7 @@ const EditAppointmentPage = () => {
                         
                         <div className="p-4 md:p-6 border-t border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4">
                             <button className="text-red-500 hover:text-red-700 text-xs font-semibold flex items-center gap-1 w-full sm:w-auto justify-center">
-                                <span className="material-symbols-outlined text-base">delete</span> Eliminar Turno
+                                <Trash2 className="w-4 h-4" /> Eliminar Turno
                             </button>
                             <div className="flex items-center gap-3 w-full sm:w-auto">
                                 <button onClick={() => navigate('/agenda')} className="flex-1 px-4 h-11 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white font-semibold text-sm">Cancelar</button>
