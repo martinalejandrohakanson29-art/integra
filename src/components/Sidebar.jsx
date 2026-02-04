@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { Calendar, Users, FileText } from 'lucide-react'; // Iconos SVG seguros
 
 const Sidebar = ({ activePage, isOpen, onClose }) => {
     const navigate = useNavigate();
@@ -26,15 +27,15 @@ const Sidebar = ({ activePage, isOpen, onClose }) => {
                 {/* Menú de Navegación */}
                 <nav className="flex-1 py-6 px-3 space-y-1 overflow-y-auto overflow-x-hidden custom-scrollbar">
                     <Link to="/agenda" className={`flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl transition-colors ${activePage === 'agenda' ? 'bg-white/20' : 'hover:bg-white/10'}`}>
-                        <span className="material-symbols-outlined w-6 h-6 overflow-hidden text-center shrink-0 select-none">calendar_today</span> 
+                        <Calendar className="w-5 h-5 shrink-0" />
                         <span className="truncate">Agenda</span>
                     </Link>
                     <Link to="/pacientes" className={`flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl transition-colors ${activePage === 'pacientes' ? 'bg-white/20' : 'hover:bg-white/10'}`}>
-                        <span className="material-symbols-outlined w-6 h-6 overflow-hidden text-center shrink-0 select-none">group</span> 
+                        <Users className="w-5 h-5 shrink-0" />
                         <span className="truncate">Pacientes</span>
                     </Link>
                     <Link to="/historia-clinica" className={`flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl transition-colors ${activePage === 'historia' ? 'bg-white/20' : 'hover:bg-white/10'}`}>
-                        <span className="material-symbols-outlined w-6 h-6 overflow-hidden text-center shrink-0 select-none">folder_shared</span> 
+                        <FileText className="w-5 h-5 shrink-0" />
                         <span className="truncate">Historias Clínicas</span>
                     </Link>
                 </nav>
