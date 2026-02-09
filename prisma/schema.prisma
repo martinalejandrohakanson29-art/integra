@@ -32,6 +32,7 @@ model Paciente {
   colorType       String   @default("default")
   fechaRegistro   DateTime @default(now())
   turnos          Turno[]
+odontograma     Json?
 }
 
 model Turno {
@@ -45,4 +46,5 @@ model Turno {
   profesionalId   String
   profesional     Profesional @relation(fields: [profesionalId], references: [id])
   createdAt       DateTime @default(now())
+odontograma     Json?   
 }
