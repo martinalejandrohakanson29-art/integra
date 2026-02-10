@@ -1,39 +1,32 @@
 import React from 'react';
 
 const Diente = ({ numero, secciones = {}, onChange }) => {
-  // Las 4 secciones que pidió el usuario
-  const caras = ['superior', 'inferior', 'izquierda', 'derecha'];
-
-  const toggleCara = (cara) => {
+  // Función para cambiar el estado de una sección (ahora incluye 'centro')
+  const toggleSeccion = (seccion) => {
     const nuevoEstado = { ...secciones };
-    nuevoEstado[cara] = !nuevoEstado[cara];
+    nuevoEstado[seccion] = !nuevoEstado[seccion];
     onChange(numero, nuevoEstado);
   };
 
+  // Clase para el color: Azul si está marcado, blanco si no
+  const getStyle = (seccion) => 
+    secciones[seccion] ? 'fill-indigo-500' : 'fill-white dark:fill-slate-900';
+
   return (
-    <div className="flex flex-col items-center gap-1">
-      <span className="text-[10px] font-bold text-slate-400">{numero}</span>
-      <div className="relative w-10 h-10 border-2 border-slate-300 dark:border-slate-600 rotate-45 overflow-hidden bg-white dark:bg-slate-800">
-        {/* Sección Superior */}
-        <div 
-          onClick={() => toggleCara('superior')}
-          className={`absolute top-0 left-0 w-full h-1/2 border-b border-slate-200 cursor-pointer hover:bg-indigo-100 ${secciones.superior ? 'bg-indigo-500' : ''}`}
-        />
-        {/* Sección Inferior */}
-        <div 
-          onClick={() => toggleCara('inferior')}
-          className={`absolute bottom-0 left-0 w-full h-1/2 cursor-pointer hover:bg-indigo-100 ${secciones.inferior ? 'bg-indigo-500' : ''}`}
-        />
-        {/* Sección Izquierda */}
-        <div 
-          onClick={() => toggleCara('izquierda')}
-          className={`absolute top-0 left-0 w-1/2 h-full border-r border-slate-200 cursor-pointer hover:bg-indigo-100 ${secciones.izquierda ? 'bg-indigo-500' : ''}`}
-        />
-        {/* Sección Derecha */}
-        <div 
-          onClick={() => toggleCara('derecha')}
-          className={`absolute top-0 right-0 w-1/2 h-full cursor-pointer hover:bg-indigo-100 ${secciones.derecha ? 'bg-indigo-500' : ''}`}
-        />
+    <div className="flex flex-col items-center">
+      <div className="w-10 h-10">
+        <svg viewBox="0 0 100 100" className="w-full h-full stroke-slate-400 dark:stroke-slate-600 stroke-[2px] cursor-pointer">
+          {/* Sección Superior */}
+          <path d="M0 0 L100 0 L75 25 L25 25 Z" onClick={() => toggleSeccion('superior')} className={`${getStyle('superior')} transition-colors hover:fill-indigo-100`} />
+          {/* Sección Inferior */}
+          <path d="M0 100 L100 100 L75 75 L25 75 Z" onClick={() => toggleSeccion('inferior')} className={`${getStyle('inferior')} transition-colors hover:fill-indigo-100`} />
+          {/* Sección Izquierda */}
+          <path d="M0 0 L25 25 L25 75 L0 100 Z" onClick={() => toggleSeccion('izquierda')} className={`${getStyle('izquierda')} transition-colors hover:fill-indigo-100`} />
+          {/* Sección Derecha */}
+          <path d="M100 0 L75 25 L75 75 L100 100 Z" onClick={() => toggleSeccion('derecha')} className={`${getStyle('derecha')} transition-colors hover:fill-indigo-100`} />
+          {/* Sección Centro */}
+          <rect x="25" y="25" width="50" height="50" onClick={() => toggleSeccion('centro')} className={`${getStyle('centro')} transition-colors hover:fill-indigo-100`} />
+        </svg>
       </div>
     </div>
   );
