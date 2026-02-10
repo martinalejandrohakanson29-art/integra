@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
-import { UserPlus, Check, ArrowLeft, HeartPulse, ClipboardList, Contact } from 'lucide-react';
+import Odontograma from '../components/Odontograma';
+import { UserPlus, Check, ArrowLeft, HeartPulse, ClipboardList, Contact, Activity } from 'lucide-react';
 
 const colorOptions = [
     { id: 'default', bg: 'bg-indigo-100', border: 'border-indigo-300' },
@@ -24,7 +25,8 @@ const NewPatientPage = () => {
         nroAfiliado: '',
         antecedentes: '',
         observaciones: '',
-        colorType: 'default'
+        colorType: 'default',
+        odontograma: {} // Estado para los datos de los dientes
     });
     const [loading, setLoading] = useState(false);
 
@@ -151,6 +153,19 @@ const NewPatientPage = () => {
                                         ))}
                                     </div>
                                 </div>
+                            </div>
+                        </div>
+
+                        {/* SECCIÓN 4: MAPA DENTAL (ODONTOGRAMA) */}
+                        <div className="bg-white dark:bg-slate-900 p-6 md:p-8 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm mt-6">
+                            <h2 className="text-lg font-bold mb-6 flex items-center gap-2 text-indigo-600">
+                                <Activity className="w-5 h-5" /> Estado Dental Inicial
+                            </h2>
+                            <div className="overflow-x-auto pb-4">
+                                <Odontograma 
+                                    data={formData.odontograma} 
+                                    onChange={(nuevaData) => setFormData({...formData, odontograma: nuevaData})} 
+                                />
                             </div>
                         </div>
 
