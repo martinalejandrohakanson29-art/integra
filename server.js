@@ -2,6 +2,8 @@ import express from 'express';
 import cors from 'cors';
 import { PrismaClient } from '@prisma/client';
 import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 dotenv.config();
 
@@ -9,10 +11,33 @@ const prisma = new PrismaClient();
 const app = express();
 const port = process.env.PORT || 3001;
 
+// Configuración para servir los archivos del frontend
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 app.use(cors());
 app.use(express.json());
 
-// --- Rutas de API ---
+// --- RUTA DE AUTENTICACIÓN (LOGIN) ---
+app.post('/api/auth/login', async (req, res) => {
+  const { username, password } = req.body;
+  try {
+    // Buscamos al profesional por email (usando username como email en este caso)
+    const profesional = await prisma.profesional.findUnique({
+      where: { email: username }
+    });
+
+    // Validación simple (en producción deberías usar bcrypt para comparar contraseñas hasheadas)
+    if (profesional && profesional.password === password) {
+      const { password: _, ...userWithoutPassword } = profesional;
+      res.json(userWithoutPassword);
+    } else {
+      res.status(401).json({ error: 'Usuario o contraseña incorrectos' });
+    }
+  } catch (error) {
+    res.status(500).json({ error: 'Error en el servidor' });
+  }
+});
 
 // --- PACIENTES ---
 
@@ -24,278 +49,179 @@ app.get('/api/pacientes', async (req, res) => {
     });
     res.json(pacientes);
   } catch (error) {
-    console.error('Error al obtener pacientes:', error);
     res.status(500).json({ error: 'Error al obtener pacientes' });
   }
 });
 
-// Obtener un paciente por ID (con historial de consultas)
+// Obtener un paciente por ID
 app.get('/api/pacientes/:id', async (req, res) => {
-  const { id } = req.params;
   try {
     const paciente = await prisma.paciente.findUnique({
-      where: { id: parseInt(id) },
+      where: { id: parseInt(req.params.id) },
       include: {
-        consultas: {
-          include: { profesional: true },
-          orderBy: { fecha: 'desc' },
-        },
-        turnos: {
-            orderBy: { fechaHoraInicio: 'desc'},
-            take: 5 // Traer solo los ultimos 5 turnos para el dashboard del paciente
-        }
+        consultas: { orderBy: { fecha: 'desc' } },
+        turnos: { orderBy: { fechaHoraInicio: 'desc' }, take: 5 }
       },
     });
-
-    if (!paciente) {
-      return res.status(404).json({ error: 'Paciente no encontrado' });
-    }
+    if (!paciente) return res.status(404).json({ error: 'No encontrado' });
     res.json(paciente);
   } catch (error) {
-    console.error('Error al obtener paciente:', error);
-    res.status(500).json({ error: 'Error al obtener paciente' });
+    res.status(500).json({ error: 'Error' });
   }
 });
 
-
-// Crear un nuevo paciente
+// Crear paciente
 app.post('/api/pacientes', async (req, res) => {
-  // 1. Extraemos todos los datos del cuerpo de la petición, incluyendo los nuevos campos médicos
-  const {
-    nombre,
-    apellido,
-    dni,
-    fechaNacimiento,
-    telefono,
-    email,
-    // Campos de Anamnesis
-    tieneAlergias,
-    tieneProbCardiacos,
-    tieneHipertension,
-    tieneDiabetes,
-    tomaMedicacion,
-    estaEmbarazada,
-    otrosAntecedentes,
-    observacionesAnamnesis
-  } = req.body;
-
-  // Validación básica
-  if (!nombre || !apellido || !dni || !fechaNacimiento) {
-    return res.status(400).json({ error: 'Faltan campos obligatorios (nombre, apellido, dni, fecha nacimiento)' });
-  }
-
   try {
-    // Validar si el DNI ya existe
-    const existingPaciente = await prisma.paciente.findUnique({
-        where: { dni }
+    const nuevo = await prisma.paciente.create({
+      data: { ...req.body, fechaNacimiento: new Date(req.body.fechaNacimiento) }
     });
-
-    if (existingPaciente) {
-        return res.status(400).json({ error: 'Ya existe un paciente con este DNI.' });
-    }
-
-    const nuevoPaciente = await prisma.paciente.create({
-      data: {
-        nombre,
-        apellido,
-        dni,
-        // Aseguramos que la fecha se guarde correctamente (Prisma espera objeto Date)
-        fechaNacimiento: new Date(fechaNacimiento),
-        telefono,
-        email,
-        // Guardamos los campos médicos. Si no vienen, Prisma usará el valor por defecto (false)
-        tieneAlergias: tieneAlergias || false,
-        tieneProbCardiacos: tieneProbCardiacos || false,
-        tieneHipertension: tieneHipertension || false,
-        tieneDiabetes: tieneDiabetes || false,
-        tomaMedicacion: tomaMedicacion || false,
-        estaEmbarazada: estaEmbarazada || false,
-        otrosAntecedentes: otrosAntecedentes || false,
-        observacionesAnamnesis: observacionesAnamnesis || ""
-      },
-    });
-    res.status(201).json(nuevoPaciente);
+    res.status(201).json(nuevo);
   } catch (error) {
-    console.error('Error al crear paciente:', error);
-     // Manejo básico de errores de Prisma (ej. DNI duplicado si pasara la primera validación)
-    if (error.code === 'P2002') {
-       return res.status(400).json({ error: 'Ya existe un paciente con ese DNI.' });
-    }
-    res.status(500).json({ error: 'Error al crear paciente' });
+    res.status(400).json({ error: 'Error al crear (DNI duplicado o faltan datos)' });
   }
 });
 
-// --- PROFESIONALES ---
-// (Se usa principalmente para selectores en turnos/consultas)
-app.get('/api/profesionales', async (req, res) => {
-    try {
-        // Por seguridad, no devolvemos el password
-        const profesionales = await prisma.profesional.findMany({
-            select: { id: true, nombre: true, apellido: true, especialidad: true }
-        });
-        res.json(profesionales);
-    } catch (error) {
-      console.error('Error al obtener profesionales:', error);
-      res.status(500).json({ error: 'Error al obtener profesionales' });
-    }
-  });
+// Editar paciente (NUEVA RUTA)
+app.patch('/api/pacientes/:id', async (req, res) => {
+  try {
+    const actualizado = await prisma.paciente.update({
+      where: { id: parseInt(req.params.id) },
+      data: { 
+        ...req.body, 
+        fechaNacimiento: req.body.fechaNacimiento ? new Date(req.body.fechaNacimiento) : undefined 
+      }
+    });
+    res.json(actualizado);
+  } catch (error) {
+    res.status(500).json({ error: 'Error al actualizar' });
+  }
+});
+
+// Eliminar paciente (NUEVA RUTA)
+app.delete('/api/pacientes/:id', async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    // Prisma borrará en cascada si está configurado, o puedes borrar manual:
+    await prisma.turno.deleteMany({ where: { pacienteId: id } });
+    await prisma.consulta.deleteMany({ where: { pacienteId: id } });
+    await prisma.paciente.delete({ where: { id } });
+    res.json({ message: 'Eliminado correctamente' });
+  } catch (error) {
+    res.status(500).json({ error: 'Error al eliminar' });
+  }
+});
 
 // --- TURNOS ---
 
-// Obtener turnos (con filtros opcionales por fecha)
 app.get('/api/turnos', async (req, res) => {
-    const { fechaInicio, fechaFin, profesionalId } = req.query;
-
-    const where = {};
-    // Filtro por rango de fechas si se proveen
-    if (fechaInicio && fechaFin) {
-        where.fechaHoraInicio = {
-            gte: new Date(fechaInicio),
-            lte: new Date(fechaFin)
-        };
-    }
-     // Filtro por profesional
-    if (profesionalId) {
-        where.profesionalId = parseInt(profesionalId);
-    }
-
-
   try {
     const turnos = await prisma.turno.findMany({
-      where,
       include: {
-        paciente: { select: { id: true, nombre: true, apellido: true } },
+        paciente: { select: { id: true, nombre: true, apellido: true, colorType: true } },
         profesional: { select: { id: true, nombre: true, apellido: true } },
-      },
-      orderBy: { fechaHoraInicio: 'asc' },
+      }
     });
-    res.json(turnos);
+    // Ajuste de formato para el front
+    const turnosFormateados = turnos.map(t => ({
+      ...t,
+      fecha: t.fechaHoraInicio.toISOString().split('T')[0],
+      hora: t.fechaHoraInicio.toISOString().split('T')[1].substring(0, 5),
+      duracion: 30 // O calcular diferencia entre inicio y fin
+    }));
+    res.json(turnosFormateados);
   } catch (error) {
-    console.error('Error al obtener turnos:', error);
-    res.status(500).json({ error: 'Error al obtener turnos' });
+    res.status(500).json({ error: 'Error' });
   }
 });
 
-// Crear un nuevo turno
 app.post('/api/turnos', async (req, res) => {
-    const { fechaHoraInicio, fechaHoraFin, pacienteId, profesionalId, motivo } = req.body;
-
-    if (!fechaHoraInicio || !fechaHoraFin || !pacienteId || !profesionalId) {
-        return res.status(400).json({ error: 'Faltan datos obligatorios para el turno.' });
-    }
-
+    const { fecha, hora, pacienteId, profesionalId } = req.body;
+    const inicio = new Date(`${fecha}T${hora}:00`);
+    const fin = new Date(inicio.getTime() + 30 * 60000);
     try {
-        // TODO: Validar que el profesional no tenga otro turno en ese horario (opcional pero recomendable)
-
-        const nuevoTurno = await prisma.turno.create({
+        const nuevo = await prisma.turno.create({
             data: {
-                fechaHoraInicio: new Date(fechaHoraInicio),
-                fechaHoraFin: new Date(fechaHoraFin),
+                fechaHoraInicio: inicio,
+                fechaHoraFin: fin,
                 pacienteId: parseInt(pacienteId),
                 profesionalId: parseInt(profesionalId),
-                motivo,
                 estado: 'PENDIENTE'
             },
-            include: { // Incluir datos para devolver al frontend
-                 paciente: { select: { id: true, nombre: true, apellido: true } },
-                 profesional: { select: { id: true, nombre: true, apellido: true } },
+            include: { paciente: true, profesional: true }
+        });
+        res.json(nuevo);
+    } catch (error) { res.status(500).json(error); }
+});
+
+// PATCH para actualizar turnos (arrastrar y soltar)
+app.patch('/api/turnos/:id', async (req, res) => {
+    const { fecha, hora, duracion, estado } = req.body;
+    let data = {};
+    if (fecha && hora) {
+        data.fechaHoraInicio = new Date(`${fecha}T${hora}:00`);
+        data.fechaHoraFin = new Date(data.fechaHoraInicio.getTime() + (duracion || 30) * 60000);
+    }
+    if (estado) data.estado = estado;
+    
+    try {
+        const act = await prisma.turno.update({
+            where: { id: parseInt(req.params.id) },
+            data,
+            include: { paciente: true, profesional: true }
+        });
+        res.json(act);
+    } catch (error) { res.status(500).json(error); }
+});
+
+app.delete('/api/turnos/:id', async (req, res) => {
+    try {
+        await prisma.turno.delete({ where: { id: parseInt(req.params.id) } });
+        res.json({ ok: true });
+    } catch (error) { res.status(500).json(error); }
+});
+
+// --- CONSULTAS ---
+
+app.get('/api/pacientes/:id/consultas', async (req, res) => {
+    const consultas = await prisma.consulta.findMany({
+        where: { pacienteId: parseInt(req.params.id) },
+        orderBy: { fecha: 'desc' }
+    });
+    // Mapeo para que el front lo entienda (observaciones <-> diagnostico)
+    res.json(consultas.map(c => ({
+        ...c,
+        observaciones: c.diagnostico, 
+        odontograma: c.odontogramaData
+    })));
+});
+
+app.post('/api/pacientes/:id/consultas', async (req, res) => {
+    const { observaciones, odontograma, fecha } = req.body;
+    try {
+        const nueva = await prisma.consulta.create({
+            data: {
+                pacienteId: parseInt(req.params.id),
+                profesionalId: 1, // Por defecto al primer pro si no hay login real
+                fecha: new Date(fecha),
+                diagnostico: observaciones,
+                tratamiento: "Consulta General",
+                odontogramaData: odontograma
             }
         });
-        res.status(201).json(nuevoTurno);
-    } catch (error) {
-        console.error('Error al crear turno:', error);
-        res.status(500).json({ error: 'Error al crear turno' });
-    }
+        res.json(nueva);
+    } catch (error) { res.status(500).json(error); }
 });
 
-// Actualizar un turno (ej. cambiar fecha o estado)
-app.put('/api/turnos/:id', async (req, res) => {
-    const { id } = req.params;
-    const { fechaHoraInicio, fechaHoraFin, estado, motivo } = req.body;
+// --- CONFIGURACIÓN PARA PRODUCCIÓN ---
+// Servir archivos estáticos de la carpeta 'dist'
+app.use(express.static(path.join(__dirname, 'dist')));
 
-    try {
-        const dataToUpdate = {};
-        if (fechaHoraInicio) dataToUpdate.fechaHoraInicio = new Date(fechaHoraInicio);
-        if (fechaHoraFin) dataToUpdate.fechaHoraFin = new Date(fechaHoraFin);
-        if (estado) dataToUpdate.estado = estado;
-        if (motivo !== undefined) dataToUpdate.motivo = motivo;
-
-        const turnoActualizado = await prisma.turno.update({
-            where: { id: parseInt(id) },
-            data: dataToUpdate,
-            include: {
-                paciente: { select: { id: true, nombre: true, apellido: true } },
-                profesional: { select: { id: true, nombre: true, apellido: true } },
-           }
-        });
-        res.json(turnoActualizado);
-
-    } catch (error) {
-         console.error('Error al actualizar turno:', error);
-         if (error.code === 'P2025') { // Record not found
-             return res.status(404).json({ error: 'Turno no encontrado' });
-         }
-        res.status(500).json({ error: 'Error al actualizar turno' });
-    }
-});
-
-
-// --- CONSULTAS (Historial) ---
-
-// Crear una nueva consulta (y opcionalmente cerrar el turno asociado)
-app.post('/api/consultas', async (req, res) => {
-    const { pacienteId, profesionalId, turnoId, diagnostico, tratamiento, notas, odontogramaData, costo } = req.body;
-
-    if (!pacienteId || !profesionalId || !diagnostico || !tratamiento) {
-         return res.status(400).json({ error: 'Faltan datos obligatorios de la consulta.' });
-    }
-
-    try {
-        // Usamos una transacción de Prisma para asegurar que todo se haga o nada
-        const result = await prisma.$transaction(async (prismaTx) => {
-            // 1. Crear la consulta
-            const nuevaConsulta = await prismaTx.consulta.create({
-                data: {
-                    pacienteId: parseInt(pacienteId),
-                    profesionalId: parseInt(profesionalId),
-                    turnoId: turnoId ? parseInt(turnoId) : null,
-                    diagnostico,
-                    tratamiento,
-                    notas,
-                    odontogramaData: odontogramaData || null, // JSON exacto enviado desde el front
-                    costo: costo ? parseFloat(costo) : null
-                }
-            });
-
-            // 2. Si hay un turno asociado, actualizar su estado a ATENDIDO
-            if (turnoId) {
-                await prismaTx.turno.update({
-                    where: { id: parseInt(turnoId) },
-                    data: { estado: 'ATENDIDO' }
-                });
-            }
-
-            return nuevaConsulta;
-        });
-
-        res.status(201).json(result);
-
-    } catch (error) {
-        console.error('Error al guardar consulta:', error);
-        // Error específico de clave única si se intenta usar el mismo turnoId dos veces
-        if (error.code === 'P2002' && error.meta?.target?.includes('turnoId')) {
-             return res.status(400).json({ error: 'Este turno ya tiene una consulta asociada.' });
-        }
-        res.status(500).json({ error: 'Error al guardar la consulta' });
-    }
-});
-
-
-// --- Ruta de prueba básica ---
-app.get('/', (req, res) => {
-  res.send('API de Integra funcionando!');
+// Cualquier ruta que no sea de la API, devuelve el index.html (para React Router)
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
 
 app.listen(port, () => {
-  console.log(`Servidor corriendo en http://localhost:${port}`);
+  console.log(`Servidor corriendo en el puerto ${port}`);
 });
