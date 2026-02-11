@@ -1,59 +1,104 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
-generator client {
-  provider = "prisma-client-js"
-}
-
+// Modelo para Profesionales (Dentistas/Usuarios del sistema)
 model Profesional {
-  id           String   @id @default(uuid())
+  id           Int       @id @default(autoincrement())
   nombre       String
-  username     String   @unique
-  password     String
-  especialidad String?
-  avatar       String?
-  turnos       Turno[]
+  apellido     String
+  email        String    @unique
+  password     String // En un caso real, esto debería estar hasheado
+  especialidad String? // Opcional: Ortodoncia, Endodoncia, etc.
+  telefono     String?
+  turnos       Turno[] // Relación: Un profesional tiene muchos turnos
+  consultas    Consulta[] // Relación: Un profesional realiza muchas consultas
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 }
 
+// Modelo para Pacientes
 model Paciente {
-  id              String   @id @default(uuid())
+  id              Int        @id @default(autoincrement())
   nombre          String
-  dni             String   @unique
+  apellido        String
+  dni             String     @unique // Documento Nacional de Identidad
+  fechaNacimiento DateTime
   telefono        String?
-  email           String?
-  fechaNacimiento String?
-  direccion       String?
-  obraSocial      String?
-  nroAfiliado     String?
-  antecedentes    String?
-  observaciones   String?
-  colorType       String     @default("default")
-  fechaRegistro   DateTime   @default(now())
-  turnos          Turno[]
-  odontograma     Json?      // Estado inicial o actual
-  consultas       Consulta[] // Relación con el historial de visitas
+  email           String? // Opcional para pacientes
+  direccion       String? // Opcional
+  
+  // --- NUEVOS CAMPOS DE ANAMNESIS (CHECKLIST) ---
+  // Por defecto están en 'false' (NO)
+  tieneAlergias        Boolean @default(false)
+  tieneProbCardiacos   Boolean @default(false)
+  tieneHipertension    Boolean @default(false)
+  tieneDiabetes        Boolean @default(false)
+  tomaMedicacion       Boolean @default(false)
+  estaEmbarazada       Boolean @default(false) // Podrías hacerlo opcional si prefieres
+  otrosAntecedentes    Boolean @default(false)
+  
+  observacionesAnamnesis String? // Campo de texto largo opcional
+
+  // Relaciones
+  turnos    Turno[] // Relación: Un paciente puede tener muchos turnos
+  consultas Consulta[] // Relación: Un paciente tiene un historial de consultas
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
 }
 
-model Consulta {
-  id            String   @id @default(uuid())
-  fecha         DateTime @default(now())
-  observaciones String?
-  odontograma   Json?    // Captura del estado dental en esa fecha específica
-  pacienteId    String
-  paciente      Paciente @relation(fields: [pacienteId], references: [id], onDelete: Cascade)
-}
-
+// Modelo para Turnos (Citas en la agenda)
 model Turno {
-  id              String   @id @default(uuid())
-  fecha           String
-  hora            String
-  duracion        Int      @default(30)
-  tipoTratamiento String?
-  pacienteId      String
-  paciente        Paciente @relation(fields: [pacienteId], references: [id], onDelete: Cascade)
-  profesionalId   String
-  profesional     Profesional @relation(fields: [profesionalId], references: [id])
-  createdAt       DateTime @default(now())
+  id             Int          @id @default(autoincrement())
+  fechaHoraInicio DateTime // Cuándo empieza el turno
+  fechaHoraFin   DateTime // Cuándo termina el turno
+  motivo         String? // Ej: "Consulta general", "Limpieza"
+  estado         EstadoTurno  @default(PENDIENTE) // Usamos un Enum para el estado
+  
+  // Relaciones
+  pacienteId     Int
+  paciente       Paciente     @relation(fields: [pacienteId], references: [id])
+  profesionalId  Int
+  profesional    Profesional  @relation(fields: [profesionalId], references: [id])
+  consulta       Consulta? // Relación opcional 1 a 1: Un turno puede generar UNA consulta (si se atendió)
+
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+}
+
+// Enum para el estado del turno
+enum EstadoTurno {
+  PENDIENTE
+  CONFIRMADO
+  CANCELADO_PACIENTE
+  CANCELADO_PROFESIONAL
+  ATENDIDO
+  AUSENTE
+}
+
+// Modelo para Consultas (Historial Clínico / Odontograma)
+model Consulta {
+  id             Int         @id @default(autoincrement())
+  fecha          DateTime    @default(now())
+  diagnostico    String // Texto del diagnóstico
+  tratamiento    String // Texto del tratamiento realizado
+  notas          String? // Notas adicionales
+  odontogramaData Json? // Guardaremos el estado del odontograma (colores de dientes) como JSON
+  costo          Decimal?    @db.Decimal(10, 2) // Costo del tratamiento
+  
+  // Relaciones
+  pacienteId     Int
+  paciente       Paciente    @relation(fields: [pacienteId], references: [id])
+  profesionalId  Int
+  profesional    Profesional @relation(fields: [profesionalId], references: [id])
+  turnoId        Int?        @unique // Relación opcional 1 a 1 con un turno
+  turno          Turno?      @relation(fields: [turnoId], references: [id])
+
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
 }
