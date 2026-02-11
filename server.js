@@ -28,14 +28,6 @@ const seedProfessionals = async () => {
 };
 seedProfessionals();
 
-// --- AUTH ---
-app.post('/api/auth/login', async (req, res) => {
-  const { username, password } = req.body;
-  const user = await prisma.profesional.findUnique({ where: { username } });
-  if (user && user.password === password) res.json(user);
-  else res.status(401).json({ error: "Credenciales inválidas" });
-});
-
 // --- PACIENTES ---
 app.get('/api/pacientes', async (req, res) => {
   const pacientes = await prisma.paciente.findMany({ 
@@ -45,6 +37,15 @@ app.get('/api/pacientes', async (req, res) => {
   res.json(pacientes);
 });
 
+// NUEVA RUTA: Obtener un paciente específico por ID
+app.get('/api/pacientes/:id', async (req, res) => {
+  const paciente = await prisma.paciente.findUnique({ 
+    where: { id: req.params.id } 
+  });
+  if (paciente) res.json(paciente);
+  else res.status(404).json({ error: "Paciente no encontrado" });
+});
+
 app.post('/api/pacientes', async (req, res) => {
   try {
     const nuevo = await prisma.paciente.create({ data: req.body });
@@ -52,12 +53,22 @@ app.post('/api/pacientes', async (req, res) => {
   } catch (e) { res.status(400).json({ error: "Error al crear paciente" }); }
 });
 
-// NUEVA RUTA: ELIMINAR PACIENTE
+// NUEVA RUTA: Actualizar datos de paciente
+app.patch('/api/pacientes/:id', async (req, res) => {
+  try {
+    const actualizado = await prisma.paciente.update({
+      where: { id: req.params.id },
+      data: req.body
+    });
+    res.json(actualizado);
+  } catch (e) { res.status(500).json({ error: "No se pudo actualizar el paciente" }); }
+});
+
 app.delete('/api/pacientes/:id', async (req, res) => {
   try {
     await prisma.paciente.delete({ where: { id: req.params.id } });
-    res.json({ message: "Paciente eliminado correctamente" });
-  } catch (e) { res.status(500).json({ error: "No se pudo eliminar el paciente" }); }
+    res.json({ message: "Paciente eliminado" });
+  } catch (e) { res.status(500).json({ error: "No se pudo eliminar" }); }
 });
 
 // --- CONSULTAS (HISTORIAL) ---
@@ -70,43 +81,26 @@ app.get('/api/pacientes/:id/consultas', async (req, res) => {
 });
 
 app.post('/api/pacientes/:id/consultas', async (req, res) => {
-  const { observaciones, odontograma, fecha } = req.body;
   const nueva = await prisma.consulta.create({
-    data: {
-      observaciones,
-      odontograma,
-      fecha: fecha ? new Date(fecha) : new Date(),
-      pacienteId: req.params.id
-    }
+    data: { ...req.body, pacienteId: req.params.id }
   });
   res.json(nueva);
 });
 
-// NUEVA RUTA: MODIFICAR CONSULTA
 app.patch('/api/consultas/:id', async (req, res) => {
-  try {
-    const { observaciones, odontograma, fecha } = req.body;
-    const actualizada = await prisma.consulta.update({
-      where: { id: req.params.id },
-      data: { 
-        observaciones, 
-        odontograma, 
-        fecha: fecha ? new Date(fecha) : undefined 
-      }
-    });
-    res.json(actualizada);
-  } catch (e) { res.status(500).json({ error: "No se pudo modificar la consulta" }); }
+  const actualizada = await prisma.consulta.update({
+    where: { id: req.params.id },
+    data: req.body
+  });
+  res.json(actualizada);
 });
 
-// NUEVA RUTA: ELIMINAR CONSULTA
 app.delete('/api/consultas/:id', async (req, res) => {
-  try {
-    await prisma.consulta.delete({ where: { id: req.params.id } });
-    res.json({ message: "Consulta eliminada" });
-  } catch (e) { res.status(500).json({ error: "No se pudo eliminar la consulta" }); }
+  await prisma.consulta.delete({ where: { id: req.params.id } });
+  res.json({ message: "Consulta eliminada" });
 });
 
-// --- TURNOS ---
+// --- TURNOS Y DEMÁS RUTAS ---
 app.get('/api/turnos', async (req, res) => {
   const turnos = await prisma.turno.findMany({ include: { paciente: true, profesional: true } });
   res.json(turnos);
