@@ -14,7 +14,7 @@ const PatientHistoryPage = () => {
     const [loading, setLoading] = useState(true);
     
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const [modalMode, setModalMode] = useState('create'); // 'create', 'view', 'edit'
+    const [modalMode, setModalMode] = useState('create'); 
     const [saving, setSaving] = useState(false);
     
     const [currentEntry, setCurrentEntry] = useState({
@@ -31,7 +31,8 @@ const PatientHistoryPage = () => {
                 fetch(`/api/pacientes/${id}/consultas`)
             ]);
             const pacientes = await resP.json();
-            const found = pacientes.find(p => p.id === id);
+            // CORRECCIÓN: usamos == porque 'id' de la URL es string y p.id es number
+            const found = pacientes.find(p => p.id == id);
             setPatient(found);
             setConsultas(await resC.json());
         } catch (error) {
@@ -66,7 +67,7 @@ const PatientHistoryPage = () => {
     };
 
     const handleDeleteConsulta = async (consultaId, e) => {
-        e.stopPropagation(); // Evita abrir el modal al clickear el tacho
+        e.stopPropagation();
         if (window.confirm("¿Estás seguro de eliminar esta entrada del historial?")) {
             await fetch(`/api/consultas/${consultaId}`, { method: 'DELETE' });
             loadData();
@@ -75,6 +76,9 @@ const PatientHistoryPage = () => {
 
     const handleSave = async () => {
         setSaving(true);
+        // OBTENER EL USUARIO LOGUEADO
+        const user = JSON.parse(localStorage.getItem('user'));
+        
         try {
             const url = modalMode === 'create' 
                 ? `/api/pacientes/${id}/consultas` 
@@ -85,15 +89,22 @@ const PatientHistoryPage = () => {
             const res = await fetch(url, {
                 method: method,
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(currentEntry)
+                body: JSON.stringify({
+                    ...currentEntry,
+                    profesionalId: user?.id // Enviar el ID del profesional real
+                })
             });
 
             if (res.ok) {
                 setIsModalOpen(false);
                 loadData();
+            } else {
+                const errorData = await res.json();
+                alert("Error al guardar: " + (errorData.error || "Error del servidor"));
             }
         } catch (error) {
             console.error(error);
+            alert("No se pudo conectar con el servidor.");
         } finally {
             setSaving(false);
         }
