@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import MainLayout from '../components/MainLayout';
 import Odontograma from '../components/Odontograma';
-import { Calendar, Phone, Activity, ArrowLeft, FileText, X, Plus, Clock, Eye } from 'lucide-react';
+import { Calendar, Phone, Activity, ArrowLeft, FileText, X, Plus, Clock, Eye, Trash2, Edit3, Check } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -13,12 +13,12 @@ const PatientHistoryPage = () => {
     const [consultas, setConsultas] = useState([]);
     const [loading, setLoading] = useState(true);
     
-    // Estados para el Modal (Sirve para Nueva y para Ver Detalle)
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const [modalMode, setModalMode] = useState('create'); // 'create' o 'view'
+    const [modalMode, setModalMode] = useState('create'); // 'create', 'view', 'edit'
     const [saving, setSaving] = useState(false);
     
     const [currentEntry, setCurrentEntry] = useState({
+        id: null,
         fecha: new Date().toISOString().split('T')[0],
         observaciones: '',
         odontograma: {}
@@ -43,21 +43,21 @@ const PatientHistoryPage = () => {
 
     useEffect(() => { loadData(); }, [id]);
 
-    // Abrir para Nueva Consulta
     const handleOpenCreate = () => {
         setModalMode('create');
         setCurrentEntry({
+            id: null,
             fecha: new Date().toISOString().split('T')[0],
             observaciones: '',
-            odontograma: patient?.odontograma || {} // Empezamos con el estado actual del paciente
+            odontograma: patient?.odontograma || {}
         });
         setIsModalOpen(true);
     };
 
-    // Abrir para Ver Detalle de una Consulta Pasada
     const handleOpenView = (consulta) => {
         setModalMode('view');
         setCurrentEntry({
+            id: consulta.id,
             fecha: format(new Date(consulta.fecha), 'yyyy-MM-dd'),
             observaciones: consulta.observaciones,
             odontograma: consulta.odontograma || {}
@@ -65,20 +65,29 @@ const PatientHistoryPage = () => {
         setIsModalOpen(true);
     };
 
-    const handleSaveConsulta = async (e) => {
-        e.preventDefault();
-        if (modalMode === 'view') {
-            setIsModalOpen(false);
-            return;
+    const handleDeleteConsulta = async (consultaId, e) => {
+        e.stopPropagation(); // Evita abrir el modal al clickear el tacho
+        if (window.confirm("¿Estás seguro de eliminar esta entrada del historial?")) {
+            await fetch(`/api/consultas/${consultaId}`, { method: 'DELETE' });
+            loadData();
         }
+    };
 
+    const handleSave = async () => {
         setSaving(true);
         try {
-            const res = await fetch(`/api/pacientes/${id}/consultas`, {
-                method: 'POST',
+            const url = modalMode === 'create' 
+                ? `/api/pacientes/${id}/consultas` 
+                : `/api/consultas/${currentEntry.id}`;
+            
+            const method = modalMode === 'create' ? 'POST' : 'PATCH';
+
+            const res = await fetch(url, {
+                method: method,
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(currentEntry)
             });
+
             if (res.ok) {
                 setIsModalOpen(false);
                 loadData();
@@ -90,8 +99,8 @@ const PatientHistoryPage = () => {
         }
     };
 
-    if (loading) return <MainLayout title="Cargando..."> <div className="p-10 text-center">Buscando ficha médica...</div> </MainLayout>;
-    if (!patient) return <MainLayout title="Error"><div className="p-10 text-center"><button onClick={() => navigate('/historia-clinica')} className="bg-indigo-600 text-white px-6 py-2 rounded-lg">Volver</button></div></MainLayout>;
+    if (loading) return <MainLayout title="Cargando..."> <div className="p-10 text-center text-slate-400">Buscando ficha médica...</div> </MainLayout>;
+    if (!patient) return <MainLayout title="Error"><div className="p-10 text-center"><button onClick={() => navigate('/historia-clinica')} className="bg-indigo-600 text-white px-6 py-2 rounded-lg font-bold">Volver al buscador</button></div></MainLayout>;
 
     return (
         <MainLayout title={patient.nombre} activePage="historia">
@@ -102,7 +111,7 @@ const PatientHistoryPage = () => {
                         <ArrowLeft className="w-4 h-4" /> Volver al buscador
                     </button>
 
-                    {/* CABECERA (INFO PACIENTE) */}
+                    {/* CABECERA PACIENTE */}
                     <div className="bg-white dark:bg-slate-900 rounded-3xl p-8 shadow-sm border border-slate-200 dark:border-slate-800">
                         <div className="flex flex-col md:flex-row gap-8 items-start">
                             <div className="w-24 h-24 rounded-2xl bg-[#517A91] flex items-center justify-center text-white text-4xl font-black shadow-xl">
@@ -127,16 +136,13 @@ const PatientHistoryPage = () => {
                         </div>
                     </div>
 
-                    {/* HISTORIAL CRONOLÓGICO */}
+                    {/* LISTADO DE CONSULTAS */}
                     <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 overflow-hidden">
                         <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-slate-800/50">
                             <h3 className="font-bold text-slate-900 dark:text-white flex items-center gap-2">
                                 <FileText className="w-5 h-5 text-indigo-500" /> Historial de Consultas
                             </h3>
-                            <button 
-                                onClick={handleOpenCreate}
-                                className="bg-indigo-600 text-white px-5 py-2.5 rounded-xl text-sm font-black shadow-lg hover:bg-indigo-700 transition-all flex items-center gap-2"
-                            >
+                            <button onClick={handleOpenCreate} className="bg-indigo-600 text-white px-5 py-2.5 rounded-xl text-sm font-black shadow-lg hover:bg-indigo-700 flex items-center gap-2">
                                 <Plus className="w-4 h-4" /> Nueva Entrada
                             </button>
                         </div>
@@ -145,11 +151,7 @@ const PatientHistoryPage = () => {
                             {consultas.length === 0 ? (
                                 <div className="p-20 text-center text-slate-400">No hay consultas registradas aún.</div>
                             ) : consultas.map((c) => (
-                                <div 
-                                    key={c.id} 
-                                    className="p-6 hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors cursor-pointer group"
-                                    onClick={() => handleOpenView(c)}
-                                >
+                                <div key={c.id} className="p-6 hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors cursor-pointer group" onClick={() => handleOpenView(c)}>
                                     <div className="flex justify-between items-start">
                                         <div className="flex items-center gap-3 mb-3">
                                             <div className="p-2 bg-indigo-50 dark:bg-indigo-900/30 rounded-lg text-indigo-600">
@@ -159,8 +161,13 @@ const PatientHistoryPage = () => {
                                                 {format(new Date(c.fecha), "dd 'de' MMMM, yyyy", { locale: es })}
                                             </span>
                                         </div>
-                                        <div className="text-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 text-xs font-bold uppercase">
-                                            <Eye className="w-4 h-4" /> Ver Ficha
+                                        <div className="flex items-center gap-2">
+                                            <button onClick={(e) => handleDeleteConsulta(c.id, e)} className="p-2 text-slate-300 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/30 rounded-lg transition-all opacity-0 group-hover:opacity-100">
+                                                <Trash2 className="w-4 h-4" />
+                                            </button>
+                                            <div className="text-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 text-xs font-bold uppercase tracking-wider">
+                                                <Eye className="w-4 h-4" /> Ver detalle
+                                            </div>
                                         </div>
                                     </div>
                                     <p className="text-slate-600 dark:text-slate-300 text-sm line-clamp-2 bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-100 dark:border-slate-700">
@@ -173,76 +180,54 @@ const PatientHistoryPage = () => {
                 </div>
             </div>
 
-            {/* MODAL DE CONSULTA (CREAR / VER) */}
+            {/* MODAL MULTIPROPÓSITO (VER / EDITAR / CREAR) */}
             {isModalOpen && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
                     <div className="bg-slate-50 dark:bg-slate-950 w-full max-w-5xl max-h-[90vh] rounded-3xl shadow-2xl overflow-hidden flex flex-col border border-white/10">
                         <div className="p-6 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center bg-white dark:bg-slate-900">
                             <div>
                                 <h2 className="text-xl font-black text-slate-900 dark:text-white">
-                                    {modalMode === 'create' ? 'Nueva Entrada Médica' : 'Detalle de Consulta'}
+                                    {modalMode === 'create' ? 'Nueva Entrada' : modalMode === 'edit' ? 'Editando Consulta' : 'Detalle Histórico'}
                                 </h2>
-                                <p className="text-xs text-slate-500 font-bold uppercase tracking-widest mt-1">
-                                    {modalMode === 'create' ? `Paciente: ${patient.nombre}` : `Fecha: ${format(new Date(currentEntry.fecha), 'dd/MM/yyyy')}`}
-                                </p>
+                                <p className="text-xs text-slate-500 font-bold uppercase tracking-widest mt-1">Paciente: {patient.nombre}</p>
                             </div>
-                            <button onClick={() => setIsModalOpen(false)} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full">
-                                <X className="w-6 h-6 text-slate-400" />
-                            </button>
+                            <div className="flex items-center gap-2">
+                                {modalMode === 'view' && (
+                                    <button onClick={() => setModalMode('edit')} className="flex items-center gap-2 bg-amber-500 text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-amber-600 transition-all">
+                                        <Edit3 className="w-3.5 h-3.5" /> Editar este registro
+                                    </button>
+                                )}
+                                <button onClick={() => setIsModalOpen(false)} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full">
+                                    <X className="w-6 h-6 text-slate-400" />
+                                </button>
+                            </div>
                         </div>
 
                         <div className="flex-1 overflow-y-auto p-6 space-y-8 custom-scrollbar">
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                                 <div className="flex flex-col gap-2">
-                                    <label className="text-xs font-black uppercase text-slate-400 tracking-tighter">Fecha</label>
-                                    <input 
-                                        type="date" 
-                                        disabled={modalMode === 'view'}
-                                        value={currentEntry.fecha}
-                                        onChange={(e) => setCurrentEntry({...currentEntry, fecha: e.target.value})}
-                                        className="p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-70 dark:text-white"
-                                    />
+                                    <label className="text-xs font-black text-slate-400 uppercase tracking-tighter">Fecha</label>
+                                    <input type="date" disabled={modalMode === 'view'} value={currentEntry.fecha} onChange={(e) => setCurrentEntry({...currentEntry, fecha: e.target.value})} className="p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-70 dark:text-white font-bold" />
                                 </div>
                                 <div className="md:col-span-2 flex flex-col gap-2">
-                                    <label className="text-xs font-black uppercase text-slate-400 tracking-tighter">Observaciones</label>
-                                    <textarea 
-                                        rows="3"
-                                        disabled={modalMode === 'view'}
-                                        placeholder="Descripción del tratamiento..."
-                                        value={currentEntry.observaciones}
-                                        onChange={(e) => setCurrentEntry({...currentEntry, observaciones: e.target.value})}
-                                        className="p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-70 dark:text-white resize-none"
-                                    />
+                                    <label className="text-xs font-black text-slate-400 uppercase tracking-tighter">Observaciones</label>
+                                    <textarea rows="3" disabled={modalMode === 'view'} placeholder="Tratamiento realizado..." value={currentEntry.observaciones} onChange={(e) => setCurrentEntry({...currentEntry, observaciones: e.target.value})} className="p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-70 dark:text-white resize-none" />
                                 </div>
                             </div>
 
                             <div className="space-y-4">
-                                <label className="text-xs font-black uppercase text-slate-400 tracking-tighter">
-                                    {modalMode === 'create' ? 'Actualizar Odontograma' : 'Estado Dental en esta fecha'}
-                                </label>
-                                <div className={`bg-white dark:bg-slate-900 p-2 rounded-3xl border border-slate-200 dark:border-slate-800 overflow-x-auto ${modalMode === 'view' ? 'pointer-events-none' : ''}`}>
-                                    <Odontograma 
-                                        data={currentEntry.odontograma}
-                                        onChange={(nuevaData) => {
-                                            if (modalMode === 'create') setCurrentEntry({...currentEntry, odontograma: nuevaData});
-                                        }}
-                                    />
+                                <label className="text-xs font-black text-slate-400 uppercase tracking-tighter">Estado Odontograma</label>
+                                <div className={`bg-white dark:bg-slate-900 p-2 rounded-3xl border border-slate-200 dark:border-slate-800 overflow-x-auto ${modalMode === 'view' ? 'pointer-events-none grayscale-[0.5]' : ''}`}>
+                                    <Odontograma data={currentEntry.odontograma} onChange={(nuevaData) => { if (modalMode !== 'view') setCurrentEntry({...currentEntry, odontograma: nuevaData}) }} />
                                 </div>
-                                {modalMode === 'view' && <p className="text-[10px] text-center text-slate-400 italic">El gráfico superior es una captura histórica y no se puede editar.</p>}
                             </div>
                         </div>
 
                         <div className="p-6 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex justify-end gap-4">
-                            <button onClick={() => setIsModalOpen(false)} className="px-6 py-3 text-slate-500 font-bold hover:text-slate-700">
-                                {modalMode === 'create' ? 'Cancelar' : 'Cerrar'}
-                            </button>
-                            {modalMode === 'create' && (
-                                <button 
-                                    onClick={handleSaveConsulta}
-                                    disabled={saving}
-                                    className="bg-indigo-600 text-white px-10 py-3 rounded-2xl font-black shadow-xl hover:bg-indigo-700 disabled:opacity-50 transition-all"
-                                >
-                                    {saving ? "Guardando..." : "Guardar Consulta"}
+                            <button onClick={() => setIsModalOpen(false)} className="px-6 py-3 text-slate-500 font-bold hover:text-slate-700">Cerrar</button>
+                            {(modalMode === 'create' || modalMode === 'edit') && (
+                                <button onClick={handleSave} disabled={saving} className="bg-indigo-600 text-white px-10 py-3 rounded-2xl font-black shadow-xl hover:bg-indigo-700 disabled:opacity-50 flex items-center gap-2">
+                                    {saving ? "Guardando..." : <><Check className="w-5 h-5" /> {modalMode === 'create' ? 'Guardar Consulta' : 'Guardar Cambios'}</>}
                                 </button>
                             )}
                         </div>
