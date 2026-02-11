@@ -49,7 +49,15 @@ app.post('/api/pacientes', async (req, res) => {
   try {
     const nuevo = await prisma.paciente.create({ data: req.body });
     res.json(nuevo);
-  } catch (e) { res.status(400).json({ error: "DNI duplicado" }); }
+  } catch (e) { res.status(400).json({ error: "Error al crear paciente" }); }
+});
+
+// NUEVA RUTA: ELIMINAR PACIENTE
+app.delete('/api/pacientes/:id', async (req, res) => {
+  try {
+    await prisma.paciente.delete({ where: { id: req.params.id } });
+    res.json({ message: "Paciente eliminado correctamente" });
+  } catch (e) { res.status(500).json({ error: "No se pudo eliminar el paciente" }); }
 });
 
 // --- CONSULTAS (HISTORIAL) ---
@@ -74,6 +82,30 @@ app.post('/api/pacientes/:id/consultas', async (req, res) => {
   res.json(nueva);
 });
 
+// NUEVA RUTA: MODIFICAR CONSULTA
+app.patch('/api/consultas/:id', async (req, res) => {
+  try {
+    const { observaciones, odontograma, fecha } = req.body;
+    const actualizada = await prisma.consulta.update({
+      where: { id: req.params.id },
+      data: { 
+        observaciones, 
+        odontograma, 
+        fecha: fecha ? new Date(fecha) : undefined 
+      }
+    });
+    res.json(actualizada);
+  } catch (e) { res.status(500).json({ error: "No se pudo modificar la consulta" }); }
+});
+
+// NUEVA RUTA: ELIMINAR CONSULTA
+app.delete('/api/consultas/:id', async (req, res) => {
+  try {
+    await prisma.consulta.delete({ where: { id: req.params.id } });
+    res.json({ message: "Consulta eliminada" });
+  } catch (e) { res.status(500).json({ error: "No se pudo eliminar la consulta" }); }
+});
+
 // --- TURNOS ---
 app.get('/api/turnos', async (req, res) => {
   const turnos = await prisma.turno.findMany({ include: { paciente: true, profesional: true } });
@@ -92,7 +124,7 @@ app.patch('/api/turnos/:id', async (req, res) => {
 
 app.delete('/api/turnos/:id', async (req, res) => {
   await prisma.turno.delete({ where: { id: req.params.id } });
-  res.json({ message: "Eliminado" });
+  res.json({ message: "Turno eliminado" });
 });
 
 app.use(express.static(path.join(__dirname, 'dist')));
