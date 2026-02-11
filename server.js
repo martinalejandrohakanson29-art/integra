@@ -11,7 +11,6 @@ const prisma = new PrismaClient();
 const app = express();
 const port = process.env.PORT || 3001;
 
-// Configuración para servir los archivos del frontend
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -22,12 +21,10 @@ app.use(express.json());
 app.post('/api/auth/login', async (req, res) => {
   const { username, password } = req.body;
   try {
-    // Buscamos al profesional por email (usando username como email en este caso)
     const profesional = await prisma.profesional.findUnique({
       where: { email: username }
     });
 
-    // Validación simple (en producción deberías usar bcrypt para comparar contraseñas hasheadas)
     if (profesional && profesional.password === password) {
       const { password: _, ...userWithoutPassword } = profesional;
       res.json(userWithoutPassword);
@@ -41,7 +38,6 @@ app.post('/api/auth/login', async (req, res) => {
 
 // --- PACIENTES ---
 
-// Obtener todos los pacientes
 app.get('/api/pacientes', async (req, res) => {
   try {
     const pacientes = await prisma.paciente.findMany({
@@ -53,7 +49,6 @@ app.get('/api/pacientes', async (req, res) => {
   }
 });
 
-// Obtener un paciente por ID
 app.get('/api/pacientes/:id', async (req, res) => {
   try {
     const paciente = await prisma.paciente.findUnique({
@@ -70,7 +65,6 @@ app.get('/api/pacientes/:id', async (req, res) => {
   }
 });
 
-// Crear paciente
 app.post('/api/pacientes', async (req, res) => {
   try {
     const nuevo = await prisma.paciente.create({
@@ -82,7 +76,6 @@ app.post('/api/pacientes', async (req, res) => {
   }
 });
 
-// Editar paciente (NUEVA RUTA)
 app.patch('/api/pacientes/:id', async (req, res) => {
   try {
     const actualizado = await prisma.paciente.update({
@@ -98,11 +91,9 @@ app.patch('/api/pacientes/:id', async (req, res) => {
   }
 });
 
-// Eliminar paciente (NUEVA RUTA)
 app.delete('/api/pacientes/:id', async (req, res) => {
   try {
     const id = parseInt(req.params.id);
-    // Prisma borrará en cascada si está configurado, o puedes borrar manual:
     await prisma.turno.deleteMany({ where: { pacienteId: id } });
     await prisma.consulta.deleteMany({ where: { pacienteId: id } });
     await prisma.paciente.delete({ where: { id } });
@@ -122,12 +113,11 @@ app.get('/api/turnos', async (req, res) => {
         profesional: { select: { id: true, nombre: true, apellido: true } },
       }
     });
-    // Ajuste de formato para el front
     const turnosFormateados = turnos.map(t => ({
       ...t,
       fecha: t.fechaHoraInicio.toISOString().split('T')[0],
       hora: t.fechaHoraInicio.toISOString().split('T')[1].substring(0, 5),
-      duracion: 30 // O calcular diferencia entre inicio y fin
+      duracion: 30
     }));
     res.json(turnosFormateados);
   } catch (error) {
@@ -154,7 +144,6 @@ app.post('/api/turnos', async (req, res) => {
     } catch (error) { res.status(500).json(error); }
 });
 
-// PATCH para actualizar turnos (arrastrar y soltar)
 app.patch('/api/turnos/:id', async (req, res) => {
     const { fecha, hora, duracion, estado } = req.body;
     let data = {};
@@ -181,43 +170,72 @@ app.delete('/api/turnos/:id', async (req, res) => {
     } catch (error) { res.status(500).json(error); }
 });
 
-// --- CONSULTAS ---
+// --- CONSULTAS (CORREGIDO) ---
 
 app.get('/api/pacientes/:id/consultas', async (req, res) => {
-    const consultas = await prisma.consulta.findMany({
-        where: { pacienteId: parseInt(req.params.id) },
-        orderBy: { fecha: 'desc' }
-    });
-    // Mapeo para que el front lo entienda (observaciones <-> diagnostico)
-    res.json(consultas.map(c => ({
-        ...c,
-        observaciones: c.diagnostico, 
-        odontograma: c.odontogramaData
-    })));
+    try {
+        const consultas = await prisma.consulta.findMany({
+            where: { pacienteId: parseInt(req.params.id) },
+            orderBy: { fecha: 'desc' }
+        });
+        res.json(consultas.map(c => ({
+            ...c,
+            observaciones: c.diagnostico, 
+            odontograma: c.odontogramaData
+        })));
+    } catch (error) { res.status(500).json(error); }
 });
 
 app.post('/api/pacientes/:id/consultas', async (req, res) => {
-    const { observaciones, odontograma, fecha } = req.body;
+    const { observaciones, odontograma, fecha, profesionalId } = req.body;
     try {
+        // Fallback: si no viene profesionalId, busca el primero en la DB
+        let pId = profesionalId;
+        if (!pId) {
+            const firstPro = await prisma.profesional.findFirst();
+            pId = firstPro?.id;
+        }
+
         const nueva = await prisma.consulta.create({
             data: {
                 pacienteId: parseInt(req.params.id),
-                profesionalId: 1, // Por defecto al primer pro si no hay login real
+                profesionalId: parseInt(pId),
                 fecha: new Date(fecha),
-                diagnostico: observaciones,
+                diagnostico: observaciones || "",
                 tratamiento: "Consulta General",
                 odontogramaData: odontograma
             }
         });
         res.json(nueva);
+    } catch (error) { 
+        console.error("Error al crear consulta:", error);
+        res.status(500).json({ error: 'No se pudo crear la consulta. Verifique que el profesional existe.' }); 
+    }
+});
+
+app.patch('/api/consultas/:id', async (req, res) => {
+    const { observaciones, odontograma, fecha } = req.body;
+    try {
+        const act = await prisma.consulta.update({
+            where: { id: parseInt(req.params.id) },
+            data: {
+                fecha: fecha ? new Date(fecha) : undefined,
+                diagnostico: observaciones,
+                odontogramaData: odontograma
+            }
+        });
+        res.json(act);
     } catch (error) { res.status(500).json(error); }
 });
 
-// --- CONFIGURACIÓN PARA PRODUCCIÓN ---
-// Servir archivos estáticos de la carpeta 'dist'
-app.use(express.static(path.join(__dirname, 'dist')));
+app.delete('/api/consultas/:id', async (req, res) => {
+    try {
+        await prisma.consulta.delete({ where: { id: parseInt(req.params.id) } });
+        res.json({ ok: true });
+    } catch (error) { res.status(500).json(error); }
+});
 
-// Cualquier ruta que no sea de la API, devuelve el index.html (para React Router)
+app.use(express.static(path.join(__dirname, 'dist')));
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
