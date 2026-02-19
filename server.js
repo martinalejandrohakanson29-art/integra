@@ -191,13 +191,17 @@ app.post('/api/pacientes/:id/consultas', async (req, res) => {
     try {
         let pId = parseInt(profesionalId);
         
-        // Si no es un número válido, intentamos buscar el primer profesional
-        if (isNaN(pId)) {
-            const firstPro = await prisma.profesional.findFirst();
-            if (!firstPro) {
-                return res.status(400).json({ error: 'No hay profesionales registrados en el sistema.' });
+        // --- CORRECCIÓN CLAVE ---
+        // Verificamos si el profesional realmente existe en la base de datos
+        const profCheck = pId ? await prisma.profesional.findUnique({ where: { id: pId } }) : null;
+
+        // Si el ID no es válido o no existe, usamos el primer profesional que encontremos
+        if (!profCheck) {
+            const defaultPro = await prisma.profesional.findFirst();
+            if (!defaultPro) {
+                return res.status(400).json({ error: 'No hay profesionales registrados para asignar la consulta.' });
             }
-            pId = firstPro.id;
+            pId = defaultPro.id;
         }
 
         const nueva = await prisma.consulta.create({
