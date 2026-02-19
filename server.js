@@ -170,7 +170,7 @@ app.delete('/api/turnos/:id', async (req, res) => {
     } catch (error) { res.status(500).json(error); }
 });
 
-// --- CONSULTAS (CORREGIDO) ---
+// --- CONSULTAS ---
 
 app.get('/api/pacientes/:id/consultas', async (req, res) => {
     try {
@@ -189,27 +189,31 @@ app.get('/api/pacientes/:id/consultas', async (req, res) => {
 app.post('/api/pacientes/:id/consultas', async (req, res) => {
     const { observaciones, odontograma, fecha, profesionalId } = req.body;
     try {
-        // Fallback: si no viene profesionalId, busca el primero en la DB
-        let pId = profesionalId;
-        if (!pId) {
+        let pId = parseInt(profesionalId);
+        
+        // Si no es un número válido, intentamos buscar el primer profesional
+        if (isNaN(pId)) {
             const firstPro = await prisma.profesional.findFirst();
-            pId = firstPro?.id;
+            if (!firstPro) {
+                return res.status(400).json({ error: 'No hay profesionales registrados en el sistema.' });
+            }
+            pId = firstPro.id;
         }
 
         const nueva = await prisma.consulta.create({
             data: {
                 pacienteId: parseInt(req.params.id),
-                profesionalId: parseInt(pId),
+                profesionalId: pId,
                 fecha: new Date(fecha),
                 diagnostico: observaciones || "",
                 tratamiento: "Consulta General",
-                odontogramaData: odontograma
+                odontogramaData: odontograma || {}
             }
         });
         res.json(nueva);
     } catch (error) { 
         console.error("Error al crear consulta:", error);
-        res.status(500).json({ error: 'No se pudo crear la consulta. Verifique que el profesional existe.' }); 
+        res.status(500).json({ error: 'Error interno al guardar la consulta.' }); 
     }
 });
 
