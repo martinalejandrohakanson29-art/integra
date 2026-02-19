@@ -69,7 +69,7 @@ app.get('/api/profesionales', async (req, res) => {
     res.json(pros || []);
   } catch (error) {
     console.error("Error profesionales:", error);
-    res.json([]);
+    res.json([]); 
   }
 });
 
@@ -81,8 +81,8 @@ app.get('/api/pacientes', async (req, res) => {
     });
     res.json(pacientes || []);
   } catch (error) {
-    console.error("Error pacientes:", error);
-    res.json([]);
+    console.error("Error al listar pacientes (Verificá si corriste npx prisma migrate dev):", error);
+    res.json([]); 
   }
 });
 
@@ -105,11 +105,21 @@ app.get('/api/pacientes/:id', async (req, res) => {
 app.post('/api/pacientes', async (req, res) => {
   try {
     const nuevo = await prisma.paciente.create({
-      data: { ...req.body, fechaNacimiento: new Date(req.body.fechaNacimiento) }
+      data: { 
+        ...req.body, 
+        fechaNacimiento: new Date(req.body.fechaNacimiento) 
+      }
     });
     res.status(201).json(nuevo);
   } catch (error) {
-    res.status(400).json({ error: 'Error al crear (DNI duplicado o faltan datos)' });
+    // Log detallado para debugging en Railway
+    console.error("Error detallado al crear paciente:", error);
+    
+    res.status(400).json({ 
+      error: error.code === 'P2002' 
+        ? 'El DNI ingresado ya existe en el sistema.' 
+        : 'Error interno al procesar los datos (verificar esquema de DB).' 
+    });
   }
 });
 
@@ -158,7 +168,6 @@ app.get('/api/turnos', async (req, res) => {
 
 app.post('/api/turnos', async (req, res) => {
     const { fecha, hora, pacienteId, profesionalId } = req.body;
-    // Creamos el objeto Date respetando la zona horaria local
     const inicio = new Date(`${fecha}T${hora}:00`);
     const fin = new Date(inicio.getTime() + 30 * 60000);
     
@@ -178,7 +187,7 @@ app.post('/api/turnos', async (req, res) => {
         });
         res.json(formatearTurno(nuevo));
     } catch (error) { 
-        console.error(error);
+        console.error("Error al crear turno:", error);
         res.status(500).json({error: "Error al crear turno"}); 
     }
 });
@@ -202,7 +211,10 @@ app.patch('/api/turnos/:id', async (req, res) => {
             }
         });
         res.json(formatearTurno(act));
-    } catch (error) { res.status(500).json({error: "Error al actualizar turno"}); }
+    } catch (error) { 
+        console.error("Error al actualizar turno:", error);
+        res.status(500).json({error: "Error al actualizar turno"}); 
+    }
 });
 
 app.delete('/api/turnos/:id', async (req, res) => {
