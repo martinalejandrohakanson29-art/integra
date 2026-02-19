@@ -30,7 +30,7 @@ model Paciente {
   telefono        String?
   email           String?
   direccion       String?
-  
+  colorType       String     @default("default")
   tieneAlergias        Boolean @default(false)
   tieneProbCardiacos   Boolean @default(false)
   tieneHipertension    Boolean @default(false)
@@ -39,7 +39,6 @@ model Paciente {
   estaEmbarazada       Boolean @default(false)
   otrosAntecedentes    Boolean @default(false)
   observacionesAnamnesis String?
-
   turnos    Turno[]
   consultas Consulta[]
   createdAt DateTime   @default(now())
@@ -58,7 +57,6 @@ model Turno {
   profesionalId  Int
   profesional    Profesional  @relation(fields: [profesionalId], references: [id])
   consulta       Consulta?
-
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @default(now()) @updatedAt
 }
