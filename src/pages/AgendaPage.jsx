@@ -31,30 +31,26 @@ const AgendaPage = () => {
   const [loading, setLoading] = useState(true);
   const [filterProf, setFilterProf] = useState('all');
 
-const loadData = async () => {
-  try {
-    const [resP, resT] = await Promise.all([
-      fetch('/api/pacientes'),
-      fetch('/api/turnos')
-    ]);
+  const loadData = async () => {
+    try {
+      const [resP, resT] = await Promise.all([
+        fetch('/api/pacientes'),
+        fetch('/api/turnos')
+      ]);
 
-    const dataP = await resP.json();
-    const dataT = await resT.json();
+      const dataP = await resP.json();
+      const dataT = await resT.json();
 
-    // VALIDACIÓN CRÍTICA: Solo guardar si es un array
-    if (Array.isArray(dataP)) setPatients(dataP);
-    if (Array.isArray(dataT)) setAppointments(dataT);
-    else {
-        console.error("La API no devolvió una lista de turnos:", dataT);
-        setAppointments([]); // Seteamos array vacío para evitar el crash
+      if (Array.isArray(dataP)) setPatients(dataP);
+      if (Array.isArray(dataT)) setAppointments(dataT);
+      else setAppointments([]);
+    } catch (error) {
+      console.error("Error al cargar datos:", error);
+      setAppointments([]);
+    } finally {
+      setLoading(false);
     }
-  } catch (error) {
-    console.error("Error al cargar datos:", error);
-    setAppointments([]); // Evita que filteredAppointments.find falle
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   useEffect(() => { loadData(); }, []);
 
@@ -65,17 +61,13 @@ const loadData = async () => {
     timeSlots.push(`${h.toString().padStart(2, '0')}:00`, `${h.toString().padStart(2, '0')}:30`);
   }
 
-  // --- Lógica para el Rango de Fechas ---
   const startDay = days[0];
   const endDay = days[4];
   const isSameMonth = startDay.getMonth() === endDay.getMonth();
-  
-  // Formato inteligente: Si es el mismo mes "10 - 14 Feb", si cambia de mes "28 Feb - 04 Mar"
   const rangeLabel = isSameMonth 
     ? `${format(startDay, 'd')} - ${format(endDay, 'd MMM', { locale: es })}`
     : `${format(startDay, 'd MMM', { locale: es })} - ${format(endDay, 'd MMM', { locale: es })}`;
 
-  // Formato del título principal (Mes y Año)
   const currentMonthTitle = format(selectedDate, 'MMMM yyyy', { locale: es });
   const capitalizedTitle = currentMonthTitle.charAt(0).toUpperCase() + currentMonthTitle.slice(1);
 
@@ -93,35 +85,54 @@ const loadData = async () => {
 
   const onDrop = async (e, date, time) => {
     e.preventDefault();
-    const type = e.dataTransfer.getData("type");
-    const data = JSON.parse(e.dataTransfer.getData("payload"));
+    try {
+      const type = e.dataTransfer.getData("type");
+      const payload = e.dataTransfer.getData("payload");
+      if (!payload) return;
+      
+      const data = JSON.parse(payload);
 
-    if (type === "patient") {
-      const res = await fetch('/api/turnos', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          fecha: format(date, 'yyyy-MM-dd'), 
-          hora: time, 
-          duracion: 30, 
-          pacienteId: data.id,
-          profesionalId: user?.id 
-        })
-      });
-      const nuevo = await res.json();
-      setAppointments(prev => [...prev, nuevo]);
-    } 
-    else if (type === "appointment") {
-      const res = await fetch(`/api/turnos/${data.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          fecha: format(date, 'yyyy-MM-dd'), 
-          hora: time 
-        })
-      });
-      const actualizado = await res.json();
-      setAppointments(prev => prev.map(a => a.id === data.id ? actualizado : a));
+      if (type === "patient") {
+        if (!user?.id) {
+          alert("Debes iniciar sesión para asignar turnos.");
+          return;
+        }
+
+        const res = await fetch('/api/turnos', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            fecha: format(date, 'yyyy-MM-dd'), 
+            hora: time, 
+            pacienteId: data.id,
+            profesionalId: user.id 
+          })
+        });
+
+        if (res.ok) {
+          const nuevo = await res.json();
+          setAppointments(prev => [...prev, nuevo]);
+        } else {
+          alert("No se pudo crear el turno.");
+        }
+      } 
+      else if (type === "appointment") {
+        const res = await fetch(`/api/turnos/${data.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            fecha: format(date, 'yyyy-MM-dd'), 
+            hora: time 
+          })
+        });
+        
+        if (res.ok) {
+          const actualizado = await res.json();
+          setAppointments(prev => prev.map(a => a.id === data.id ? actualizado : a));
+        }
+      }
+    } catch (err) {
+      console.error("Error en el drop:", err);
     }
   };
 
@@ -131,13 +142,15 @@ const loadData = async () => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(campos)
     });
-    const actualizado = await res.json();
-    setAppointments(prev => prev.map(a => a.id === id ? actualizado : a));
+    if (res.ok) {
+      const actualizado = await res.json();
+      setAppointments(prev => prev.map(a => a.id === id ? actualizado : a));
+    }
   };
 
   const filteredAppointments = filterProf === 'all' 
     ? appointments 
-    : appointments.filter(a => a.profesionalId === filterProf);
+    : appointments.filter(a => a.profesionalId === parseInt(filterProf));
 
   const filteredPatients = patients.filter(p => 
     p.nombre.toLowerCase().includes(searchTerm.toLowerCase()) || p.dni.includes(searchTerm)
@@ -145,7 +158,6 @@ const loadData = async () => {
 
   const headerActions = (
     <div className="flex items-center gap-4">
-      {/* Filtro de Profesional */}
       <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl border border-slate-200 dark:border-slate-700">
         <Filter className="w-4 h-4 ml-2 text-slate-400" />
         <select 
@@ -158,31 +170,16 @@ const loadData = async () => {
         </select>
       </div>
 
-      {/* Navegación de Fechas */}
       <div className="flex bg-slate-100 dark:bg-slate-700 rounded-lg p-1 items-center">
         <button onClick={() => setSelectedDate(subWeeks(selectedDate, 1))} className="p-1.5 hover:bg-white dark:hover:bg-slate-600 rounded-md transition-all"><ChevronLeft className="w-4 h-4 text-slate-600 dark:text-slate-300" /></button>
-        
-        {/* BOTÓN CENTRAL CON RANGO DE FECHAS (Clic para ir a HOY) */}
-        <button 
-            onClick={() => setSelectedDate(startOfToday())} 
-            className="px-3 py-1 text-xs font-bold text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors capitalize min-w-[110px]"
-            title="Clic para volver a Hoy"
-        >
-            {rangeLabel}
+        <button onClick={() => setSelectedDate(startOfToday())} className="px-3 py-1 text-xs font-bold text-slate-600 dark:text-slate-300 hover:text-indigo-600 transition-colors capitalize min-w-[110px]">
+          {rangeLabel}
         </button>
-
         <button onClick={() => setSelectedDate(addWeeks(selectedDate, 1))} className="p-1.5 hover:bg-white dark:hover:bg-slate-600 rounded-md transition-all"><ChevronRight className="w-4 h-4 text-slate-600 dark:text-slate-300" /></button>
-        
         <div className="w-px h-3 bg-slate-300 dark:bg-slate-600 mx-1"></div>
-
-        {/* Selector de Fecha */}
-        <div className="relative p-1.5 hover:bg-white dark:hover:bg-slate-600 rounded-md transition-all cursor-pointer group" title="Ir a fecha específica">
-           <Calendar className="w-4 h-4 text-slate-600 dark:text-slate-300 group-hover:text-indigo-600 transition-colors" />
-           <input 
-              type="date" 
-              onChange={handleDateChange}
-              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-           />
+        <div className="relative p-1.5 hover:bg-white dark:hover:bg-slate-600 rounded-md transition-all cursor-pointer group">
+           <Calendar className="w-4 h-4 text-slate-600 dark:text-slate-300 group-hover:text-indigo-600" />
+           <input type="date" onChange={handleDateChange} className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
         </div>
       </div>
     </div>
@@ -191,7 +188,6 @@ const loadData = async () => {
   return (
     <MainLayout title={`Agenda - ${capitalizedTitle}`} activePage="agenda" extraHeader={headerActions}>
       <div className="flex h-full gap-4 overflow-hidden">
-        
         <div className="w-72 flex flex-col gap-4 overflow-hidden">
           <div className="flex-1 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 flex flex-col overflow-hidden">
             <div className="p-4 border-b border-slate-100 dark:border-slate-700">
@@ -205,12 +201,7 @@ const loadData = async () => {
             </div>
             <div className="flex-1 overflow-y-auto p-3 space-y-2 custom-scrollbar">
               {filteredPatients.map(p => (
-                <div 
-                    key={p.id} 
-                    draggable 
-                    onDragStart={(e) => handleDragStart(e, p, "patient")} 
-                    className={`group flex items-center gap-3 p-3 border border-transparent rounded-xl cursor-grab active:cursor-grabbing hover:border-indigo-400 transition-all shadow-sm ${colorOptions[p.colorType]?.bg || 'bg-slate-50'}`}
-                >
+                <div key={p.id} draggable onDragStart={(e) => handleDragStart(e, p, "patient")} className={`group flex items-center gap-3 p-3 border border-transparent rounded-xl cursor-grab active:cursor-grabbing hover:border-indigo-400 transition-all shadow-sm ${colorOptions[p.colorType]?.bg || 'bg-slate-50'}`}>
                   <GripVertical className="w-4 h-4 text-slate-400" />
                   <div className="overflow-hidden leading-tight">
                     <p className="text-sm font-bold text-slate-700 dark:text-slate-200 truncate">{p.nombre}</p>
@@ -278,7 +269,6 @@ const loadData = async () => {
                             <p className="text-[9px] font-medium opacity-80">{appointment.duracion} min</p>
                           </div>
                           
-                          {/* Información del Profesional - Texto negro y normal */}
                           <div className="flex items-center gap-1.5 mt-1 pt-1.5 border-t border-black/10">
                             <div className="w-4 h-4 rounded-full bg-white/60 flex items-center justify-center text-[9px] font-bold text-slate-800">
                               {appointment.profesional?.nombre ? appointment.profesional.nombre.charAt(0) : '?'}
@@ -290,17 +280,9 @@ const loadData = async () => {
 
                           <div className="absolute -bottom-3 left-0 right-0 flex justify-center opacity-0 group-hover:opacity-100 transition-opacity z-20">
                             <div className="flex gap-1 bg-white dark:bg-slate-700 rounded-full shadow-lg border border-slate-200 p-0.5 scale-75">
-                              <button 
-                                onClick={(e) => { e.stopPropagation(); updateTurno(appointment.id, { duracion: appointment.duracion - 30 }) }} 
-                                className="w-5 h-5 flex items-center justify-center text-indigo-600 text-xs font-black"
-                              > - </button>
+                              <button onClick={(e) => { e.stopPropagation(); updateTurno(appointment.id, { duracion: appointment.duracion - 30 }) }} className="w-5 h-5 flex items-center justify-center text-indigo-600 text-xs font-black"> - </button>
                               <div className="w-px h-3 bg-slate-200 self-center"></div>
-                              <button 
-                                onClick={(e) => { e.stopPropagation(); updateTurno(appointment.id, { duracion: appointment.duracion + 30 }) }} 
-                                className="w-5 h-5 flex items-center justify-center text-indigo-600"
-                              >
-                                <ChevronDown className="w-3.5 h-3.5" />
-                              </button>
+                              <button onClick={(e) => { e.stopPropagation(); updateTurno(appointment.id, { duracion: appointment.duracion + 30 }) }} className="w-5 h-5 flex items-center justify-center text-indigo-600"> <ChevronDown className="w-3.5 h-3.5" /> </button>
                             </div>
                           </div>
                         </div>
