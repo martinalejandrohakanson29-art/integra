@@ -1,16 +1,16 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import Layout from '../components/Layout';
+import MainLayout from '../components/MainLayout'; // Corregido: Importamos MainLayout
 import { UserPlus, Save, X, AlertCircle, FileText, Activity } from 'lucide-react';
 
 const NewPatientPage = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const API_URL = import.meta.env.VITE_API_URL || '';
   
-  // Estado inicial del formulario combinado (Datos personales + Anamnesis)
+  // Estado inicial del formulario combinado
   const [formData, setFormData] = useState({
-    // Datos Personales
     nombre: '',
     apellido: '',
     dni: '',
@@ -18,7 +18,6 @@ const NewPatientPage = () => {
     telefono: '',
     email: '',
     direccion: '',
-    // Datos de Anamnesis (Historial Médico) - Booleanos inician en false (NO)
     tieneAlergias: false,
     tieneProbCardiacos: false,
     tieneHipertension: false,
@@ -26,14 +25,11 @@ const NewPatientPage = () => {
     tomaMedicacion: false,
     estaEmbarazada: false,
     otrosAntecedentes: false,
-    observacionesAnamnesis: '' // Campo de texto para detalles
+    observacionesAnamnesis: '' 
   });
 
-  // Manejador único para todos los inputs
   const handleChange = (e) => {
     const { name, value, type } = e.target;
-    
-    // Si es un radio button de sí/no, convertimos el value string ("true"/"false") a booleano real
     const finalValue = type === 'radio' ? value === 'true' : value;
 
     setFormData(prevState => ({
@@ -47,7 +43,6 @@ const NewPatientPage = () => {
     setLoading(true);
     setError(null);
 
-    // Validación básica en frontend
     if (!formData.nombre || !formData.apellido || !formData.dni || !formData.fechaNacimiento) {
         setError('Por favor complete los campos obligatorios marcados con *.');
         setLoading(false);
@@ -55,7 +50,7 @@ const NewPatientPage = () => {
     }
 
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/pacientes`, {
+      const response = await fetch(`${API_URL}/api/pacientes`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -68,7 +63,6 @@ const NewPatientPage = () => {
         throw new Error(errorData.error || 'Error al crear el paciente');
       }
 
-      // Si sale bien, redirigir a la lista de pacientes
       navigate('/pacientes');
       
     } catch (err) {
@@ -79,121 +73,104 @@ const NewPatientPage = () => {
     }
   };
 
-  // Componente auxiliar para una fila del checklist médico (Radio Buttons Sí/No)
   const MedicalCheckRow = ({ label, name, value, onChange }) => (
-    <div className="flex items-center justify-between py-3 border-b border-gray-100 last:border-0">
-      <span className="text-gray-700 font-medium">{label}</span>
+    <div className="flex items-center justify-between py-3 border-b border-slate-100 dark:border-slate-800 last:border-0">
+      <span className="text-slate-700 dark:text-slate-300 font-medium">{label}</span>
       <div className="flex items-center space-x-4">
-        <label className="inline-flex items-center">
+        <label className="inline-flex items-center cursor-pointer">
           <input
             type="radio"
             name={name}
             value="true"
             checked={value === true}
             onChange={onChange}
-            className="form-radio h-4 w-4 text-teal-600 border-gray-300 focus:ring-teal-500"
+            className="form-radio h-4 w-4 text-indigo-600 border-slate-300"
           />
-          <span className="ml-2 text-gray-700">Sí</span>
+          <span className="ml-2 text-slate-700 dark:text-slate-300">Sí</span>
         </label>
-        <label className="inline-flex items-center">
+        <label className="inline-flex items-center cursor-pointer">
           <input
             type="radio"
             name={name}
             value="false"
-            checked={value === false} // Esto asegura que 'No' esté marcado por defecto si el estado es false
+            checked={value === false}
             onChange={onChange}
-            className="form-radio h-4 w-4 text-red-500 border-gray-300 focus:ring-red-500"
+            className="form-radio h-4 w-4 text-rose-500 border-slate-300"
           />
-          <span className="ml-2 text-gray-700">No</span>
+          <span className="ml-2 text-slate-700 dark:text-slate-300">No</span>
         </label>
       </div>
     </div>
   );
 
-
   return (
-    <Layout>
-      <div className="max-w-4xl mx-auto">
-        {/* Encabezado */}
-        <div className="flex items-center mb-6">
-            <UserPlus className="h-8 w-8 text-teal-600 mr-3" />
-            <div>
-                <h1 className="text-2xl font-bold text-gray-800">Nuevo Paciente</h1>
-                <p className="text-gray-600">Complete la ficha de ingreso y la anamnesis inicial.</p>
-            </div>
-        </div>
-
+    <MainLayout title="Nuevo Paciente" activePage="pacientes">
+      <div className="max-w-4xl mx-auto h-full overflow-y-auto pr-2 custom-scrollbar pb-10">
+        
         {/* Mensaje de Error */}
         {error && (
-            <div className="mb-6 bg-red-50 border-l-4 border-red-500 p-4 rounded-md flex items-start">
-                <AlertCircle className="h-5 w-5 text-red-500 mr-2 flex-shrink-0 mt-0.5" />
-                <p className="text-red-700">{error}</p>
+            <div className="mb-6 bg-rose-50 dark:bg-rose-900/20 border-l-4 border-rose-500 p-4 rounded-md flex items-start">
+                <AlertCircle className="h-5 w-5 text-rose-500 mr-2 flex-shrink-0 mt-0.5" />
+                <p className="text-rose-700 dark:text-rose-300 text-sm">{error}</p>
             </div>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-6">
             {/* Sección 1: Datos Personales */}
-            <div className="bg-white shadow rounded-lg overflow-hidden">
-                <div className="bg-gray-50 px-4 py-3 border-b flex items-center">
-                    <FileText className="h-5 w-5 text-gray-500 mr-2" />
-                    <h2 className="text-lg font-semibold text-gray-700">Datos Personales</h2>
+            <div className="bg-white dark:bg-slate-900 shadow-sm rounded-3xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+                <div className="bg-slate-50 dark:bg-slate-800/50 px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center">
+                    <FileText className="h-5 w-5 text-slate-500 mr-2" />
+                    <h2 className="text-lg font-bold text-slate-700 dark:text-white">Datos Personales</h2>
                 </div>
                 <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-                     {/* Nombre */}
                     <div>
-                        <label htmlFor="nombre" className="block text-sm font-medium text-gray-700 mb-1">Nombre *</label>
-                        <input type="text" id="nombre" name="nombre" value={formData.nombre} onChange={handleChange} required
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500" placeholder="Ej: Juan" />
+                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Nombre *</label>
+                        <input type="text" name="nombre" value={formData.nombre} onChange={handleChange} required
+                            className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none dark:text-white" placeholder="Ej: Juan" />
                     </div>
-                     {/* Apellido */}
                     <div>
-                        <label htmlFor="apellido" className="block text-sm font-medium text-gray-700 mb-1">Apellido *</label>
-                        <input type="text" id="apellido" name="apellido" value={formData.apellido} onChange={handleChange} required
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500" placeholder="Ej: Pérez" />
+                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Apellido *</label>
+                        <input type="text" name="apellido" value={formData.apellido} onChange={handleChange} required
+                            className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none dark:text-white" placeholder="Ej: Pérez" />
                     </div>
-                     {/* DNI */}
                     <div>
-                        <label htmlFor="dni" className="block text-sm font-medium text-gray-700 mb-1">DNI *</label>
-                        <input type="text" id="dni" name="dni" value={formData.dni} onChange={handleChange} required
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500" placeholder="Sin puntos ni guiones" />
+                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">DNI *</label>
+                        <input type="text" name="dni" value={formData.dni} onChange={handleChange} required
+                            className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none dark:text-white" placeholder="Sin puntos" />
                     </div>
-                     {/* Fecha de Nacimiento */}
                     <div>
-                        <label htmlFor="fechaNacimiento" className="block text-sm font-medium text-gray-700 mb-1">Fecha de Nacimiento *</label>
-                        <input type="date" id="fechaNacimiento" name="fechaNacimiento" value={formData.fechaNacimiento} onChange={handleChange} required
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500" />
+                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Fecha de Nacimiento *</label>
+                        <input type="date" name="fechaNacimiento" value={formData.fechaNacimiento} onChange={handleChange} required
+                            className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none dark:text-white" />
                     </div>
-                    {/* Teléfono */}
                     <div>
-                        <label htmlFor="telefono" className="block text-sm font-medium text-gray-700 mb-1">Teléfono</label>
-                        <input type="tel" id="telefono" name="telefono" value={formData.telefono} onChange={handleChange}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500" placeholder="Ej: 11 1234-5678" />
+                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Teléfono</label>
+                        <input type="tel" name="telefono" value={formData.telefono} onChange={handleChange}
+                            className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none dark:text-white" placeholder="Ej: 351..." />
                     </div>
-                    {/* Email */}
                     <div>
-                        <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                        <input type="email" id="email" name="email" value={formData.email} onChange={handleChange}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500" placeholder="correo@ejemplo.com" />
+                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Email</label>
+                        <input type="email" name="email" value={formData.email} onChange={handleChange}
+                            className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none dark:text-white" placeholder="correo@ejemplo.com" />
                     </div>
-                     {/* Dirección (span-2 para ocupar todo el ancho) */}
                     <div className="md:col-span-2">
-                        <label htmlFor="direccion" className="block text-sm font-medium text-gray-700 mb-1">Dirección</label>
-                        <input type="text" id="direccion" name="direccion" value={formData.direccion} onChange={handleChange}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500" placeholder="Calle, número, localidad..." />
+                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Dirección</label>
+                        <input type="text" name="direccion" value={formData.direccion} onChange={handleChange}
+                            className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none dark:text-white" placeholder="Calle, número, localidad..." />
                     </div>
                 </div>
             </div>
 
-             {/* Sección 2: Anamnesis (Historial Médico) */}
-             <div className="bg-white shadow rounded-lg overflow-hidden">
-                <div className="bg-teal-50 px-4 py-3 border-b flex items-center">
-                    <Activity className="h-5 w-5 text-teal-600 mr-2" />
-                    <h2 className="text-lg font-semibold text-teal-800">Anamnesis Inicial</h2>
+             {/* Sección 2: Anamnesis */}
+             <div className="bg-white dark:bg-slate-900 shadow-sm rounded-3xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+                <div className="bg-indigo-50 dark:bg-indigo-900/20 px-6 py-4 border-b border-indigo-100 dark:border-indigo-800 flex items-center">
+                    <Activity className="h-5 w-5 text-indigo-600 mr-2" />
+                    <h2 className="text-lg font-bold text-indigo-900 dark:text-indigo-300">Anamnesis Inicial</h2>
                 </div>
-                <div className="p-6 bg-white">
-                    <p className="text-sm text-gray-500 mb-4">Marque 'Sí' si el paciente presenta alguna de las siguientes condiciones:</p>
+                <div className="p-6">
+                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Condiciones Médicas</p>
                     
-                    <div className="bg-gray-50 rounded-md p-4 border border-gray-200 mb-4">
+                    <div className="bg-slate-50 dark:bg-slate-800/30 rounded-2xl p-4 border border-slate-100 dark:border-slate-800 mb-6">
                         <MedicalCheckRow label="¿Tiene alergias? (medicamentos, látex, etc.)" name="tieneAlergias" value={formData.tieneAlergias} onChange={handleChange} />
                         <MedicalCheckRow label="¿Tiene problemas cardíacos?" name="tieneProbCardiacos" value={formData.tieneProbCardiacos} onChange={handleChange} />
                         <MedicalCheckRow label="¿Sufre de hipertensión arterial?" name="tieneHipertension" value={formData.tieneHipertension} onChange={handleChange} />
@@ -203,16 +180,14 @@ const NewPatientPage = () => {
                         <MedicalCheckRow label="¿Otros antecedentes médicos de relevancia?" name="otrosAntecedentes" value={formData.otrosAntecedentes} onChange={handleChange} />
                     </div>
 
-                     {/* Campo de Observaciones */}
                     <div>
-                        <label htmlFor="observacionesAnamnesis" className="block text-sm font-medium text-gray-700 mb-1">Observaciones Médicas Adicionales</label>
+                        <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Observaciones Médicas Adicionales</label>
                         <textarea
-                            id="observacionesAnamnesis"
                             name="observacionesAnamnesis"
                             rows="3"
                             value={formData.observacionesAnamnesis}
                             onChange={handleChange}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-teal-500"
+                            className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none dark:text-white resize-none"
                             placeholder="Detalle aquí alergias específicas, nombres de medicamentos, etc..."
                         ></textarea>
                     </div>
@@ -220,39 +195,25 @@ const NewPatientPage = () => {
             </div>
 
             {/* Botones de Acción */}
-            <div className="flex justify-end space-x-3 pt-4">
+            <div className="flex justify-end gap-4 pt-4 pb-10">
                 <button
                     type="button"
                     onClick={() => navigate('/pacientes')}
-                    className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 bg-white hover:bg-gray-50 flex items-center focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+                    className="px-6 py-3 text-slate-500 font-bold hover:text-slate-700 dark:hover:text-slate-300 transition-colors"
                 >
-                    <X className="h-5 w-5 mr-2" />
                     Cancelar
                 </button>
                 <button
                     type="submit"
                     disabled={loading}
-                    className={`px-4 py-2 border border-transparent rounded-md shadow-sm text-white bg-teal-600 hover:bg-teal-700 flex items-center focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500 ${loading ? 'opacity-75 cursor-not-allowed' : ''}`}
+                    className={`px-10 py-3 bg-indigo-600 text-white rounded-2xl font-black shadow-xl hover:bg-indigo-700 flex items-center gap-2 transition-all transform hover:-translate-y-1 ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
-                    {loading ? (
-                        <>
-                         <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                         </svg>
-                         Guardando...
-                        </>
-                    ) : (
-                        <>
-                        <Save className="h-5 w-5 mr-2" />
-                        Guardar Paciente
-                        </>
-                    )}
+                    {loading ? 'Guardando...' : <><Save className="h-5 w-5" /> Guardar Paciente</>}
                 </button>
             </div>
         </form>
       </div>
-    </Layout>
+    </MainLayout>
   );
 };
 
