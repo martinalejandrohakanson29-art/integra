@@ -13,9 +13,15 @@ const PatientListPage = () => {
     try {
       const res = await fetch('/api/pacientes');
       const data = await res.json();
-      setPatients(data);
+      // Verificamos que 'data' sea una lista antes de guardarla
+      if (Array.isArray(data)) {
+        setPatients(data);
+      } else {
+        setPatients([]);
+      }
     } catch (error) {
       console.error("Error cargando pacientes:", error);
+      setPatients([]);
     } finally {
       setLoading(false);
     }
@@ -24,13 +30,11 @@ const PatientListPage = () => {
   useEffect(() => { loadPatients(); }, []);
 
   const handleDelete = async (id, name) => {
-    if (window.confirm(`¿Estás seguro de eliminar a ${name}? Esto borrará también sus turnos e historia clínica de forma permanente.`)) {
+    if (window.confirm(`¿Estás seguro de eliminar a ${name}?`)) {
       try {
         const res = await fetch(`/api/pacientes/${id}`, { method: 'DELETE' });
         if (res.ok) {
           setPatients(prev => prev.filter(p => p.id !== id));
-        } else {
-          alert("Error al eliminar el paciente de la base de datos.");
         }
       } catch (error) {
         alert("No se pudo conectar con el servidor.");
@@ -38,9 +42,10 @@ const PatientListPage = () => {
     }
   };
 
-  const filteredPatients = patients.filter(p => 
+  // Protección: si patients no es lista, filteredPatients será lista vacía
+  const filteredPatients = Array.isArray(patients) ? patients.filter(p => 
     p.nombre.toLowerCase().includes(searchTerm.toLowerCase()) || p.dni.includes(searchTerm)
-  );
+  ) : [];
 
   const headerActions = (
     <button 
@@ -55,8 +60,6 @@ const PatientListPage = () => {
   return (
     <MainLayout title="Gestión de Pacientes" activePage="pacientes" extraHeader={headerActions}>
       <div className="flex flex-col h-full space-y-4">
-        
-        {/* BUSCADOR */}
         <div className="relative max-w-md">
           <Search className="absolute left-3 top-2.5 h-5 w-5 text-slate-400" />
           <input 
@@ -68,7 +71,6 @@ const PatientListPage = () => {
           />
         </div>
 
-        {/* TABLA */}
         <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden flex-1 flex flex-col">
           <div className="overflow-auto custom-scrollbar">
             <table className="w-full text-left border-collapse">
@@ -102,31 +104,13 @@ const PatientListPage = () => {
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        
-                        {/* Botón Historia Clínica */}
-                        <button 
-                          onClick={() => navigate(`/pacientes/${p.id}/historia`)}
-                          className="p-2 text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-lg"
-                          title="Historia Clínica"
-                        >
+                        <button onClick={() => navigate(`/pacientes/${p.id}/historia`)} className="p-2 text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-lg" title="Historia Clínica">
                           <FileText className="w-4 h-4" />
                         </button>
-
-                        {/* Botón Editar Datos (NUEVO) */}
-                        <button 
-                          onClick={() => navigate(`/pacientes/${p.id}/editar`)}
-                          className="p-2 text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/30 rounded-lg"
-                          title="Editar Datos"
-                        >
+                        <button onClick={() => navigate(`/pacientes/${p.id}/editar`)} className="p-2 text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/30 rounded-lg" title="Editar Datos">
                           <Edit3 className="w-4 h-4" />
                         </button>
-
-                        {/* Botón Eliminar */}
-                        <button 
-                          onClick={() => handleDelete(p.id, p.nombre)}
-                          className="p-2 text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/30 rounded-lg"
-                          title="Eliminar"
-                        >
+                        <button onClick={() => handleDelete(p.id, p.nombre)} className="p-2 text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/30 rounded-lg" title="Eliminar">
                           <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
