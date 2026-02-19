@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import MainLayout from '../components/MainLayout';
 import Odontograma from '../components/Odontograma';
-import { Calendar, Phone, Activity, ArrowLeft, FileText, X, Plus, Clock, Eye, Trash2, Edit3, Check } from 'lucide-react';
+import { Calendar, Phone, Activity, ArrowLeft, FileText, X, Plus, Clock, Eye, Trash2, Edit3, Check, UserMd } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -11,6 +11,7 @@ const PatientHistoryPage = () => {
     const navigate = useNavigate();
     const [patient, setPatient] = useState(null);
     const [consultas, setConsultas] = useState([]);
+    const [profesionales, setProfesionales] = useState([]);
     const [loading, setLoading] = useState(true);
     
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -21,14 +22,16 @@ const PatientHistoryPage = () => {
         id: null,
         fecha: new Date().toISOString().split('T')[0],
         observaciones: '',
-        odontograma: {}
+        odontograma: {},
+        profesionalId: ''
     });
 
     const loadData = async () => {
         try {
-            const [resP, resC] = await Promise.all([
+            const [resP, resC, resPros] = await Promise.all([
                 fetch(`/api/pacientes/${id}`),
-                fetch(`/api/pacientes/${id}/consultas`)
+                fetch(`/api/pacientes/${id}/consultas`),
+                fetch('/api/profesionales')
             ]);
 
             if (!resP.ok) throw new Error("Paciente no encontrado");
@@ -36,6 +39,7 @@ const PatientHistoryPage = () => {
             const dataPaciente = await resP.json();
             setPatient(dataPaciente);
             setConsultas(await resC.json());
+            setProfesionales(await resPros.json());
         } catch (error) {
             console.error("Error cargando datos:", error);
             setPatient(null);
@@ -49,6 +53,7 @@ const PatientHistoryPage = () => {
     }, [id]);
 
     const handleOpenCreate = () => {
+        const user = JSON.parse(localStorage.getItem('user'));
         setModalMode('create');
         const ultimoOdontograma = consultas.length > 0 ? consultas[0].odontograma : {};
         
@@ -56,7 +61,8 @@ const PatientHistoryPage = () => {
             id: null,
             fecha: new Date().toISOString().split('T')[0],
             observaciones: '',
-            odontograma: ultimoOdontograma
+            odontograma: ultimoOdontograma,
+            profesionalId: user?.id || '' // Por defecto el que está logueado
         });
         setIsModalOpen(true);
     };
@@ -67,7 +73,8 @@ const PatientHistoryPage = () => {
             id: consulta.id,
             fecha: format(new Date(consulta.fecha), 'yyyy-MM-dd'),
             observaciones: consulta.observaciones,
-            odontograma: consulta.odontograma || {}
+            odontograma: consulta.odontograma || {},
+            profesionalId: consulta.profesionalId || ''
         });
         setIsModalOpen(true);
     };
@@ -85,6 +92,10 @@ const PatientHistoryPage = () => {
             alert("Por favor, ingresa las observaciones del tratamiento.");
             return;
         }
+        if (!currentEntry.profesionalId) {
+            alert("Por favor, selecciona un profesional.");
+            return;
+        }
 
         setSaving(true);
         try {
@@ -94,19 +105,10 @@ const PatientHistoryPage = () => {
             
             const method = modalMode === 'create' ? 'POST' : 'PATCH';
 
-            // Obtenemos el usuario de la sesión para el profesionalId
-            const userStr = localStorage.getItem('user');
-            const user = userStr ? JSON.parse(userStr) : null;
-            
-            const payload = {
-                ...currentEntry,
-                profesionalId: user?.id // Esto se envía al backend
-            };
-
             const res = await fetch(url, {
                 method: method,
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
+                body: JSON.stringify(currentEntry)
             });
 
             if (res.ok) {
@@ -243,7 +245,24 @@ const PatientHistoryPage = () => {
                                     <label className="text-xs font-black text-slate-400 uppercase tracking-tighter">Fecha</label>
                                     <input type="date" disabled={modalMode === 'view'} value={currentEntry.fecha} onChange={(e) => setCurrentEntry({...currentEntry, fecha: e.target.value})} className="p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-70 dark:text-white font-bold" />
                                 </div>
-                                <div className="md:col-span-2 flex flex-col gap-2">
+
+                                {/* SELECTOR DE PROFESIONAL (NUEVO) */}
+                                <div className="flex flex-col gap-2">
+                                    <label className="text-xs font-black text-slate-400 uppercase tracking-tighter">Profesional a cargo</label>
+                                    <select 
+                                        disabled={modalMode === 'view'}
+                                        value={currentEntry.profesionalId}
+                                        onChange={(e) => setCurrentEntry({...currentEntry, profesionalId: e.target.value})}
+                                        className="p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-70 dark:text-white font-bold"
+                                    >
+                                        <option value="">Seleccionar...</option>
+                                        {profesionales.map(p => (
+                                            <option key={p.id} value={p.id}>{p.nombre} {p.apellido}</option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                <div className="md:col-span-3 flex flex-col gap-2">
                                     <label className="text-xs font-black text-slate-400 uppercase tracking-tighter">Observaciones del Tratamiento</label>
                                     <textarea rows="3" disabled={modalMode === 'view'} placeholder="Describe el tratamiento realizado..." value={currentEntry.observaciones} onChange={(e) => setCurrentEntry({...currentEntry, observaciones: e.target.value})} className="p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-70 dark:text-white resize-none" />
                                 </div>
