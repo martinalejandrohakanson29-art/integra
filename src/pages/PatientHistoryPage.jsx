@@ -26,30 +26,39 @@ const PatientHistoryPage = () => {
 
     const loadData = async () => {
         try {
+            // Optimización: Buscamos directamente el paciente por ID en la API
             const [resP, resC] = await Promise.all([
-                fetch('/api/pacientes'),
+                fetch(`/api/pacientes/${id}`),
                 fetch(`/api/pacientes/${id}/consultas`)
             ]);
-            const pacientes = await resP.json();
-            const found = pacientes.find(p => p.id === id);
-            setPatient(found);
+
+            if (!resP.ok) throw new Error("Paciente no encontrado");
+
+            const dataPaciente = await resP.json();
+            setPatient(dataPaciente);
             setConsultas(await resC.json());
         } catch (error) {
             console.error("Error cargando datos:", error);
+            setPatient(null);
         } finally {
             setLoading(false);
         }
     };
 
-    useEffect(() => { loadData(); }, [id]);
+    useEffect(() => { 
+        if (id) loadData(); 
+    }, [id]);
 
     const handleOpenCreate = () => {
         setModalMode('create');
+        // Si el paciente ya tiene consultas, podríamos intentar traer el último odontograma
+        const ultimoOdontograma = consultas.length > 0 ? consultas[0].odontograma : {};
+        
         setCurrentEntry({
             id: null,
             fecha: new Date().toISOString().split('T')[0],
             observaciones: '',
-            odontograma: patient?.odontograma || {}
+            odontograma: ultimoOdontograma
         });
         setIsModalOpen(true);
     };
@@ -66,7 +75,7 @@ const PatientHistoryPage = () => {
     };
 
     const handleDeleteConsulta = async (consultaId, e) => {
-        e.stopPropagation(); // Evita abrir el modal al clickear el tacho
+        e.stopPropagation(); 
         if (window.confirm("¿Estás seguro de eliminar esta entrada del historial?")) {
             await fetch(`/api/consultas/${consultaId}`, { method: 'DELETE' });
             loadData();
@@ -74,6 +83,11 @@ const PatientHistoryPage = () => {
     };
 
     const handleSave = async () => {
+        if (!currentEntry.observaciones.trim()) {
+            alert("Por favor, ingresa las observaciones del tratamiento.");
+            return;
+        }
+
         setSaving(true);
         try {
             const url = modalMode === 'create' 
@@ -82,28 +96,49 @@ const PatientHistoryPage = () => {
             
             const method = modalMode === 'create' ? 'POST' : 'PATCH';
 
+            // Para el modo 'create', necesitamos enviar el profesionalId
+            const user = JSON.parse(localStorage.getItem('user'));
+            const payload = {
+                ...currentEntry,
+                profesionalId: user?.id
+            };
+
             const res = await fetch(url, {
                 method: method,
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(currentEntry)
+                body: JSON.stringify(payload)
             });
 
             if (res.ok) {
                 setIsModalOpen(false);
                 loadData();
+            } else {
+                alert("Hubo un problema al guardar la consulta.");
             }
         } catch (error) {
             console.error(error);
+            alert("Error de conexión con el servidor.");
         } finally {
             setSaving(false);
         }
     };
 
     if (loading) return <MainLayout title="Cargando..."> <div className="p-10 text-center text-slate-400">Buscando ficha médica...</div> </MainLayout>;
-    if (!patient) return <MainLayout title="Error"><div className="p-10 text-center"><button onClick={() => navigate('/historia-clinica')} className="bg-indigo-600 text-white px-6 py-2 rounded-lg font-bold">Volver al buscador</button></div></MainLayout>;
+    
+    // Si no se encontró el paciente, mostramos el botón para volver
+    if (!patient) return (
+        <MainLayout title="Error">
+            <div className="p-10 text-center flex flex-col items-center gap-4">
+                <p className="text-slate-500 font-bold">No se encontró el paciente solicitado.</p>
+                <button onClick={() => navigate('/historia-clinica')} className="bg-indigo-600 text-white px-6 py-2 rounded-lg font-bold shadow-lg hover:bg-indigo-700 transition-all">
+                    Volver al buscador
+                </button>
+            </div>
+        </MainLayout>
+    );
 
     return (
-        <MainLayout title={patient.nombre} activePage="historia">
+        <MainLayout title={patient.nombre + " " + (patient.apellido || "")} activePage="historia">
             <div className="h-full overflow-y-auto pr-2 custom-scrollbar">
                 <div className="max-w-6xl mx-auto space-y-6 pb-20">
                     
@@ -130,7 +165,9 @@ const PatientHistoryPage = () => {
                                     <label className="text-[10px] font-bold text-rose-600 uppercase tracking-widest flex items-center gap-2 mb-1">
                                       <Activity className="w-3 h-3" /> Antecedentes
                                     </label>
-                                    <p className="text-slate-700 dark:text-slate-200 text-sm italic">{patient.antecedentes || 'Sin registros.'}</p>
+                                    <p className="text-slate-700 dark:text-slate-200 text-sm italic">
+                                        {patient.observacionesAnamnesis || patient.antecedentes || 'Sin registros médicos previos.'}
+                                    </p>
                                 </div>
                             </div>
                         </div>
@@ -180,7 +217,7 @@ const PatientHistoryPage = () => {
                 </div>
             </div>
 
-            {/* MODAL MULTIPROPÓSITO (VER / EDITAR / CREAR) */}
+            {/* MODAL MULTIPROPÓSITO */}
             {isModalOpen && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
                     <div className="bg-slate-50 dark:bg-slate-950 w-full max-w-5xl max-h-[90vh] rounded-3xl shadow-2xl overflow-hidden flex flex-col border border-white/10">
@@ -210,14 +247,14 @@ const PatientHistoryPage = () => {
                                     <input type="date" disabled={modalMode === 'view'} value={currentEntry.fecha} onChange={(e) => setCurrentEntry({...currentEntry, fecha: e.target.value})} className="p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-70 dark:text-white font-bold" />
                                 </div>
                                 <div className="md:col-span-2 flex flex-col gap-2">
-                                    <label className="text-xs font-black text-slate-400 uppercase tracking-tighter">Observaciones</label>
-                                    <textarea rows="3" disabled={modalMode === 'view'} placeholder="Tratamiento realizado..." value={currentEntry.observaciones} onChange={(e) => setCurrentEntry({...currentEntry, observaciones: e.target.value})} className="p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-70 dark:text-white resize-none" />
+                                    <label className="text-xs font-black text-slate-400 uppercase tracking-tighter">Observaciones del Tratamiento</label>
+                                    <textarea rows="3" disabled={modalMode === 'view'} placeholder="Describe el tratamiento realizado, anestesia, materiales, etc..." value={currentEntry.observaciones} onChange={(e) => setCurrentEntry({...currentEntry, observaciones: e.target.value})} className="p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-70 dark:text-white resize-none" />
                                 </div>
                             </div>
 
                             <div className="space-y-4">
                                 <label className="text-xs font-black text-slate-400 uppercase tracking-tighter">Estado Odontograma</label>
-                                <div className={`bg-white dark:bg-slate-900 p-2 rounded-3xl border border-slate-200 dark:border-slate-800 overflow-x-auto ${modalMode === 'view' ? 'pointer-events-none grayscale-[0.5]' : ''}`}>
+                                <div className={`bg-white dark:bg-slate-900 p-2 rounded-3xl border border-slate-200 dark:border-slate-800 overflow-x-auto ${modalMode === 'view' ? 'pointer-events-none grayscale-[0.3]' : ''}`}>
                                     <Odontograma data={currentEntry.odontograma} onChange={(nuevaData) => { if (modalMode !== 'view') setCurrentEntry({...currentEntry, odontograma: nuevaData}) }} />
                                 </div>
                             </div>
@@ -226,7 +263,7 @@ const PatientHistoryPage = () => {
                         <div className="p-6 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex justify-end gap-4">
                             <button onClick={() => setIsModalOpen(false)} className="px-6 py-3 text-slate-500 font-bold hover:text-slate-700">Cerrar</button>
                             {(modalMode === 'create' || modalMode === 'edit') && (
-                                <button onClick={handleSave} disabled={saving} className="bg-indigo-600 text-white px-10 py-3 rounded-2xl font-black shadow-xl hover:bg-indigo-700 disabled:opacity-50 flex items-center gap-2">
+                                <button onClick={handleSave} disabled={saving} className="bg-indigo-600 text-white px-10 py-3 rounded-2xl font-black shadow-xl hover:bg-indigo-700 disabled:opacity-50 flex items-center gap-2 transition-all active:scale-95">
                                     {saving ? "Guardando..." : <><Check className="w-5 h-5" /> {modalMode === 'create' ? 'Guardar Consulta' : 'Guardar Cambios'}</>}
                                 </button>
                             )}
