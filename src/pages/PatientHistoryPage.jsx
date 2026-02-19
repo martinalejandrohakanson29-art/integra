@@ -14,7 +14,7 @@ const PatientHistoryPage = () => {
     const [loading, setLoading] = useState(true);
     
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const [modalMode, setModalMode] = useState('create'); // 'create', 'view', 'edit'
+    const [modalMode, setModalMode] = useState('create'); 
     const [saving, setSaving] = useState(false);
     
     const [currentEntry, setCurrentEntry] = useState({
@@ -26,7 +26,6 @@ const PatientHistoryPage = () => {
 
     const loadData = async () => {
         try {
-            // Optimización: Buscamos directamente el paciente por ID en la API
             const [resP, resC] = await Promise.all([
                 fetch(`/api/pacientes/${id}`),
                 fetch(`/api/pacientes/${id}/consultas`)
@@ -51,7 +50,6 @@ const PatientHistoryPage = () => {
 
     const handleOpenCreate = () => {
         setModalMode('create');
-        // Si el paciente ya tiene consultas, podríamos intentar traer el último odontograma
         const ultimoOdontograma = consultas.length > 0 ? consultas[0].odontograma : {};
         
         setCurrentEntry({
@@ -96,11 +94,13 @@ const PatientHistoryPage = () => {
             
             const method = modalMode === 'create' ? 'POST' : 'PATCH';
 
-            // Para el modo 'create', necesitamos enviar el profesionalId
-            const user = JSON.parse(localStorage.getItem('user'));
+            // Obtenemos el usuario de la sesión para el profesionalId
+            const userStr = localStorage.getItem('user');
+            const user = userStr ? JSON.parse(userStr) : null;
+            
             const payload = {
                 ...currentEntry,
-                profesionalId: user?.id
+                profesionalId: user?.id // Esto se envía al backend
             };
 
             const res = await fetch(url, {
@@ -113,7 +113,8 @@ const PatientHistoryPage = () => {
                 setIsModalOpen(false);
                 loadData();
             } else {
-                alert("Hubo un problema al guardar la consulta.");
+                const errorData = await res.json();
+                alert(errorData.error || "Hubo un problema al guardar la consulta.");
             }
         } catch (error) {
             console.error(error);
@@ -125,7 +126,6 @@ const PatientHistoryPage = () => {
 
     if (loading) return <MainLayout title="Cargando..."> <div className="p-10 text-center text-slate-400">Buscando ficha médica...</div> </MainLayout>;
     
-    // Si no se encontró el paciente, mostramos el botón para volver
     if (!patient) return (
         <MainLayout title="Error">
             <div className="p-10 text-center flex flex-col items-center gap-4">
@@ -146,7 +146,6 @@ const PatientHistoryPage = () => {
                         <ArrowLeft className="w-4 h-4" /> Volver al buscador
                     </button>
 
-                    {/* CABECERA PACIENTE */}
                     <div className="bg-white dark:bg-slate-900 rounded-3xl p-8 shadow-sm border border-slate-200 dark:border-slate-800">
                         <div className="flex flex-col md:flex-row gap-8 items-start">
                             <div className="w-24 h-24 rounded-2xl bg-[#517A91] flex items-center justify-center text-white text-4xl font-black shadow-xl">
@@ -173,7 +172,6 @@ const PatientHistoryPage = () => {
                         </div>
                     </div>
 
-                    {/* LISTADO DE CONSULTAS */}
                     <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 overflow-hidden">
                         <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-slate-800/50">
                             <h3 className="font-bold text-slate-900 dark:text-white flex items-center gap-2">
@@ -217,7 +215,6 @@ const PatientHistoryPage = () => {
                 </div>
             </div>
 
-            {/* MODAL MULTIPROPÓSITO */}
             {isModalOpen && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
                     <div className="bg-slate-50 dark:bg-slate-950 w-full max-w-5xl max-h-[90vh] rounded-3xl shadow-2xl overflow-hidden flex flex-col border border-white/10">
@@ -248,7 +245,7 @@ const PatientHistoryPage = () => {
                                 </div>
                                 <div className="md:col-span-2 flex flex-col gap-2">
                                     <label className="text-xs font-black text-slate-400 uppercase tracking-tighter">Observaciones del Tratamiento</label>
-                                    <textarea rows="3" disabled={modalMode === 'view'} placeholder="Describe el tratamiento realizado, anestesia, materiales, etc..." value={currentEntry.observaciones} onChange={(e) => setCurrentEntry({...currentEntry, observaciones: e.target.value})} className="p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-70 dark:text-white resize-none" />
+                                    <textarea rows="3" disabled={modalMode === 'view'} placeholder="Describe el tratamiento realizado..." value={currentEntry.observaciones} onChange={(e) => setCurrentEntry({...currentEntry, observaciones: e.target.value})} className="p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-70 dark:text-white resize-none" />
                                 </div>
                             </div>
 
