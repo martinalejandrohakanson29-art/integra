@@ -32,6 +32,7 @@ app.post('/api/auth/login', async (req, res) => {
       res.status(401).json({ error: 'Usuario o contraseña incorrectos' });
     }
   } catch (error) {
+    console.error("Error en login:", error);
     res.status(500).json({ error: 'Error en el servidor' });
   }
 });
@@ -42,9 +43,10 @@ app.get('/api/profesionales', async (req, res) => {
     const pros = await prisma.profesional.findMany({
       select: { id: true, nombre: true, apellido: true, especialidad: true }
     });
-    res.json(pros);
+    res.json(pros || []);
   } catch (error) {
-    res.status(500).json({ error: 'Error al obtener profesionales' });
+    console.error("Error profesionales:", error);
+    res.json([]); // Si falla, devolvemos lista vacía para no romper el frontend
   }
 });
 
@@ -54,9 +56,10 @@ app.get('/api/pacientes', async (req, res) => {
     const pacientes = await prisma.paciente.findMany({
       orderBy: { createdAt: 'desc' },
     });
-    res.json(pacientes);
+    res.json(pacientes || []);
   } catch (error) {
-    res.status(500).json({ error: 'Error al obtener pacientes' });
+    console.error("Error pacientes:", error);
+    res.json([]); // Si falla, devolvemos lista vacía
   }
 });
 
@@ -72,7 +75,7 @@ app.get('/api/pacientes/:id', async (req, res) => {
     if (!paciente) return res.status(404).json({ error: 'No encontrado' });
     res.json(paciente);
   } catch (error) {
-    res.status(500).json({ error: 'Error' });
+    res.status(500).json({ error: 'Error al buscar paciente' });
   }
 });
 
@@ -129,9 +132,10 @@ app.get('/api/turnos', async (req, res) => {
       hora: t.fechaHoraInicio.toISOString().split('T')[1].substring(0, 5),
       duracion: 30
     }));
-    res.json(turnosFormateados);
+    res.json(turnosFormateados || []);
   } catch (error) {
-    res.status(500).json({ error: 'Error' });
+    console.error("Error en turnos:", error);
+    res.json([]); // Si falla, devolvemos lista vacía
   }
 });
 
@@ -151,7 +155,7 @@ app.post('/api/turnos', async (req, res) => {
             include: { paciente: true, profesional: true }
         });
         res.json(nuevo);
-    } catch (error) { res.status(500).json(error); }
+    } catch (error) { res.status(500).json({error: "Error al crear turno"}); }
 });
 
 app.patch('/api/turnos/:id', async (req, res) => {
@@ -170,14 +174,14 @@ app.patch('/api/turnos/:id', async (req, res) => {
             include: { paciente: true, profesional: true }
         });
         res.json(act);
-    } catch (error) { res.status(500).json(error); }
+    } catch (error) { res.status(500).json({error: "Error al actualizar turno"}); }
 });
 
 app.delete('/api/turnos/:id', async (req, res) => {
     try {
         await prisma.turno.delete({ where: { id: parseInt(req.params.id) } });
         res.json({ ok: true });
-    } catch (error) { res.status(500).json(error); }
+    } catch (error) { res.status(500).json({error: "Error al borrar turno"}); }
 });
 
 // --- CONSULTAS ---
@@ -193,7 +197,7 @@ app.get('/api/pacientes/:id/consultas', async (req, res) => {
             odontograma: c.odontogramaData,
             profesionalId: c.profesionalId
         })));
-    } catch (error) { res.status(500).json(error); }
+    } catch (error) { res.json([]); }
 });
 
 app.post('/api/pacientes/:id/consultas', async (req, res) => {
@@ -201,13 +205,12 @@ app.post('/api/pacientes/:id/consultas', async (req, res) => {
     try {
         let pId = parseInt(profesionalId);
         
-        // Verificamos si el profesional existe
         const profCheck = pId ? await prisma.profesional.findUnique({ where: { id: pId } }) : null;
 
         if (!profCheck) {
             const defaultPro = await prisma.profesional.findFirst();
             if (!defaultPro) {
-                return res.status(400).json({ error: 'No hay profesionales registrados para asignar la consulta.' });
+                return res.status(400).json({ error: 'No hay profesionales registrados.' });
             }
             pId = defaultPro.id;
         }
@@ -224,8 +227,7 @@ app.post('/api/pacientes/:id/consultas', async (req, res) => {
         });
         res.json(nueva);
     } catch (error) { 
-        console.error("Error al crear consulta:", error);
-        res.status(500).json({ error: 'Error interno al guardar la consulta.' }); 
+        res.status(500).json({ error: 'Error al guardar la consulta.' }); 
     }
 });
 
@@ -242,14 +244,14 @@ app.patch('/api/consultas/:id', async (req, res) => {
             }
         });
         res.json(act);
-    } catch (error) { res.status(500).json(error); }
+    } catch (error) { res.status(500).json({error: "Error al editar consulta"}); }
 });
 
 app.delete('/api/consultas/:id', async (req, res) => {
     try {
         await prisma.consulta.delete({ where: { id: parseInt(req.params.id) } });
         res.json({ ok: true });
-    } catch (error) { res.status(500).json(error); }
+    } catch (error) { res.status(500).json({error: "Error al borrar consulta"}); }
 });
 
 app.use(express.static(path.join(__dirname, 'dist')));
