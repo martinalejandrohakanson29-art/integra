@@ -2,9 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import MainLayout from '../components/MainLayout';
 import Odontograma from '../components/Odontograma';
-import { Calendar, Phone, Activity, ArrowLeft, FileText, X, Plus, Clock, Eye, Trash2, Edit3, Check } from 'lucide-react';
+import { Calendar, Phone, Activity, ArrowLeft, FileText, X, Plus, Clock, Eye, Trash2, Edit3, Check, UserMd } from 'lucide-react';
 import { format } from 'date-fns';
-import { es } from 'es'; // Cambiado para evitar error si la librería falla
+import { es } from 'date-fns/locale'; // Corregido: Ahora Vite lo encontrará correctamente
 
 const PatientHistoryPage = () => {
     const { id } = useParams();
@@ -13,6 +13,7 @@ const PatientHistoryPage = () => {
     const [consultas, setConsultas] = useState([]);
     const [profesionales, setProfesionales] = useState([]);
     const [loading, setLoading] = useState(true);
+    
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [modalMode, setModalMode] = useState('create'); 
     const [saving, setSaving] = useState(false);
@@ -33,92 +34,179 @@ const PatientHistoryPage = () => {
                 fetch('/api/profesionales')
             ]);
 
-            if (resP.ok) setPatient(await resP.json());
-            
-            const dataC = await resC.json();
-            setConsultas(Array.isArray(dataC) ? dataC : []);
+            if (resP.ok) {
+                const dataPaciente = await resP.json();
+                setPatient(dataPaciente);
+            }
+
+            const dataConsultas = await resC.json();
+            setConsultas(Array.isArray(dataConsultas) ? dataConsultas : []);
 
             const dataPros = await resPros.json();
             setProfesionales(Array.isArray(dataPros) ? dataPros : []);
 
         } catch (error) {
             console.error("Error cargando datos:", error);
+            setPatient(null);
         } finally {
             setLoading(false);
         }
     };
 
-    useEffect(() => { if (id) loadData(); }, [id]);
+    useEffect(() => { 
+        if (id) loadData(); 
+    }, [id]);
 
     const handleOpenCreate = () => {
         const user = JSON.parse(localStorage.getItem('user'));
         setModalMode('create');
         const ultimoOdontograma = consultas.length > 0 ? consultas[0].odontograma : {};
+        
         setCurrentEntry({
             id: null,
             fecha: new Date().toISOString().split('T')[0],
             observaciones: '',
             odontograma: ultimoOdontograma || {},
-            profesionalId: user?.id || ''
+            profesionalId: user?.id || '' 
         });
         setIsModalOpen(true);
     };
 
+    const handleOpenView = (consulta) => {
+        setModalMode('view');
+        setCurrentEntry({
+            id: consulta.id,
+            fecha: consulta.fecha ? consulta.fecha.split('T')[0] : new Date().toISOString().split('T')[0],
+            observaciones: consulta.observaciones || '',
+            odontograma: consulta.odontograma || {},
+            profesionalId: consulta.profesionalId || ''
+        });
+        setIsModalOpen(true);
+    };
+
+    const handleDeleteConsulta = async (consultaId, e) => {
+        e.stopPropagation(); 
+        if (window.confirm("¿Estás seguro de eliminar esta entrada?")) {
+            await fetch(`/api/consultas/${consultaId}`, { method: 'DELETE' });
+            loadData();
+        }
+    };
+
     const handleSave = async () => {
         if (!currentEntry.observaciones.trim() || !currentEntry.profesionalId) {
-            alert("Completa las observaciones y selecciona un profesional.");
+            alert("Por favor, ingresa las observaciones y selecciona un profesional.");
             return;
         }
+
         setSaving(true);
         try {
-            const url = modalMode === 'create' ? `/api/pacientes/${id}/consultas` : `/api/consultas/${currentEntry.id}`;
+            const url = modalMode === 'create' 
+                ? `/api/pacientes/${id}/consultas` 
+                : `/api/consultas/${currentEntry.id}`;
+            
             const method = modalMode === 'create' ? 'POST' : 'PATCH';
+
             const res = await fetch(url, {
                 method: method,
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(currentEntry)
             });
+
             if (res.ok) {
                 setIsModalOpen(false);
                 loadData();
             }
-        } catch (error) { alert("Error al guardar."); } 
-        finally { setSaving(false); }
+        } catch (error) {
+            alert("Error de conexión.");
+        } finally {
+            setSaving(false);
+        }
     };
 
-    if (loading) return <MainLayout title="Cargando..."> <div className="p-10 text-center text-slate-400">Cargando...</div> </MainLayout>;
-    if (!patient) return <MainLayout title="Error"> <div className="p-10 text-center">Paciente no encontrado.</div> </MainLayout>;
+    if (loading) return <MainLayout title="Cargando..."> <div className="p-10 text-center text-slate-400">Buscando ficha médica...</div> </MainLayout>;
+    
+    if (!patient) return (
+        <MainLayout title="Error">
+            <div className="p-10 text-center flex flex-col items-center gap-4">
+                <p className="text-slate-500 font-bold">No se encontró el paciente solicitado.</p>
+                <button onClick={() => navigate('/historia-clinica')} className="bg-indigo-600 text-white px-6 py-2 rounded-lg font-bold shadow-lg">
+                    Volver al buscador
+                </button>
+            </div>
+        </MainLayout>
+    );
 
     return (
-        <MainLayout title={patient.nombre} activePage="historia">
+        <MainLayout title={patient.nombre + " " + (patient.apellido || "")} activePage="historia">
             <div className="h-full overflow-y-auto pr-2 custom-scrollbar">
                 <div className="max-w-6xl mx-auto space-y-6 pb-20">
+                    
                     <button onClick={() => navigate('/historia-clinica')} className="flex items-center gap-2 text-slate-500 hover:text-indigo-600 transition-colors font-bold text-sm mb-2">
-                        <ArrowLeft className="w-4 h-4" /> Volver
+                        <ArrowLeft className="w-4 h-4" /> Volver al buscador
                     </button>
-                    {/* ... Resto del diseño igual ... */}
-                    <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200">
-                        <div className="flex justify-between items-center mb-4">
-                            <h3 className="font-bold">Historial</h3>
-                            <button onClick={handleOpenCreate} className="bg-indigo-600 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-lg">
-                                + Nueva Entrada
+
+                    <div className="bg-white dark:bg-slate-900 rounded-3xl p-8 shadow-sm border border-slate-200 dark:border-slate-800">
+                        <div className="flex flex-col md:flex-row gap-8 items-start">
+                            <div className="w-24 h-24 rounded-2xl bg-[#517A91] flex items-center justify-center text-white text-4xl font-black shadow-xl">
+                                {patient.nombre.charAt(0)}
+                            </div>
+                            <div className="flex-1 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                <div>
+                                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Documento</label>
+                                    <p className="text-slate-900 dark:text-white font-bold text-lg">{patient.dni}</p>
+                                </div>
+                                <div>
+                                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Obra Social</label>
+                                    <p className="text-indigo-600 dark:text-indigo-400 font-bold">{patient.obraSocial || 'Particular'}</p>
+                                </div>
+                                <div className="lg:col-span-3 p-4 bg-rose-50 dark:bg-rose-900/20 rounded-2xl border border-rose-100 dark:border-rose-800">
+                                    <label className="text-[10px] font-bold text-rose-600 uppercase tracking-widest flex items-center gap-2 mb-1">
+                                      <Activity className="w-3 h-3" /> Antecedentes
+                                    </label>
+                                    <p className="text-slate-700 dark:text-slate-200 text-sm italic">
+                                        {patient.observacionesAnamnesis || patient.antecedentes || 'Sin registros médicos previos.'}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+                        <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-slate-800/50">
+                            <h3 className="font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                                <FileText className="w-5 h-5 text-indigo-500" /> Historial de Consultas
+                            </h3>
+                            <button onClick={handleOpenCreate} className="bg-indigo-600 text-white px-5 py-2.5 rounded-xl text-sm font-black shadow-lg hover:bg-indigo-700 flex items-center gap-2">
+                                <Plus className="w-4 h-4" /> Nueva Entrada
                             </button>
                         </div>
-                        <div className="divide-y">
-                            {consultas.length === 0 ? <p className="p-10 text-center text-slate-400">Sin consultas.</p> : consultas.map(c => (
-                                <div key={c.id} className="p-4 hover:bg-slate-50 cursor-pointer" onClick={() => {
-                                    setModalMode('view');
-                                    setCurrentEntry({
-                                        id: c.id,
-                                        fecha: c.fecha.split('T')[0],
-                                        observaciones: c.observaciones,
-                                        odontograma: c.odontograma || {},
-                                        profesionalId: c.profesionalId
-                                    });
-                                    setIsModalOpen(true);
-                                }}>
-                                    <p className="font-bold text-sm">{c.fecha.split('T')[0]}</p>
-                                    <p className="text-xs text-slate-500 truncate">{c.observaciones}</p>
+                        
+                        <div className="divide-y divide-slate-100 dark:divide-slate-800">
+                            {consultas.length === 0 ? (
+                                <div className="p-20 text-center text-slate-400">No hay consultas registradas aún.</div>
+                            ) : consultas.map((c) => (
+                                <div key={c.id} className="p-6 hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors cursor-pointer group" onClick={() => handleOpenView(c)}>
+                                    <div className="flex justify-between items-start">
+                                        <div className="flex items-center gap-3 mb-3">
+                                            <div className="p-2 bg-indigo-50 dark:bg-indigo-900/30 rounded-lg text-indigo-600">
+                                                <Clock className="w-4 h-4" />
+                                            </div>
+                                            <span className="font-black text-slate-900 dark:text-white">
+                                                {c.fecha ? format(new Date(c.fecha), "dd 'de' MMMM, yyyy", { locale: es }) : 'Fecha no disponible'}
+                                            </span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <button onClick={(e) => handleDeleteConsulta(c.id, e)} className="p-2 text-slate-300 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/30 rounded-lg transition-all opacity-0 group-hover:opacity-100">
+                                                <Trash2 className="w-4 h-4" />
+                                            </button>
+                                            <div className="text-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 text-xs font-bold uppercase tracking-wider">
+                                                <Eye className="w-4 h-4" /> Ver detalle
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <p className="text-slate-600 dark:text-slate-300 text-sm line-clamp-2 bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-100 dark:border-slate-700">
+                                        {c.observaciones || "Sin observaciones."}
+                                    </p>
                                 </div>
                             ))}
                         </div>
@@ -128,24 +216,69 @@ const PatientHistoryPage = () => {
 
             {isModalOpen && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-                    <div className="bg-white dark:bg-slate-950 w-full max-w-5xl max-h-[90vh] rounded-3xl overflow-hidden flex flex-col">
-                        <div className="p-6 border-b flex justify-between items-center">
-                            <h2 className="font-bold">Consulta</h2>
-                            <button onClick={() => setIsModalOpen(false)}><X /></button>
-                        </div>
-                        <div className="flex-1 overflow-y-auto p-6 space-y-6">
-                            <select value={currentEntry.profesionalId} onChange={e => setCurrentEntry({...currentEntry, profesionalId: e.target.value})} className="w-full p-3 border rounded-xl">
-                                <option value="">Seleccionar Profesional...</option>
-                                {profesionales.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
-                            </select>
-                            <textarea value={currentEntry.observaciones} onChange={e => setCurrentEntry({...currentEntry, observaciones: e.target.value})} className="w-full p-3 border rounded-xl" rows="4" placeholder="Observaciones..." />
-                            <div className="border p-4 rounded-xl">
-                                <Odontograma data={currentEntry.odontograma} onChange={d => setCurrentEntry({...currentEntry, odontograma: d})} />
+                    <div className="bg-slate-50 dark:bg-slate-950 w-full max-w-5xl max-h-[90vh] rounded-3xl shadow-2xl overflow-hidden flex flex-col border border-white/10">
+                        <div className="p-6 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center bg-white dark:bg-slate-900">
+                            <div>
+                                <h2 className="text-xl font-black text-slate-900 dark:text-white">
+                                    {modalMode === 'create' ? 'Nueva Entrada' : modalMode === 'edit' ? 'Editando Consulta' : 'Detalle Histórico'}
+                                </h2>
+                                <p className="text-xs text-slate-500 font-bold uppercase tracking-widest mt-1">Paciente: {patient.nombre}</p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                {modalMode === 'view' && (
+                                    <button onClick={() => setModalMode('edit')} className="flex items-center gap-2 bg-amber-500 text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-amber-600 transition-all">
+                                        <Edit3 className="w-3.5 h-3.5" /> Editar este registro
+                                    </button>
+                                )}
+                                <button onClick={() => setIsModalOpen(false)} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full">
+                                    <X className="w-6 h-6 text-slate-400" />
+                                </button>
                             </div>
                         </div>
-                        <div className="p-6 border-t flex justify-end gap-4">
-                            <button onClick={() => setIsModalOpen(false)}>Cerrar</button>
-                            {modalMode !== 'view' && <button onClick={handleSave} className="bg-indigo-600 text-white px-6 py-2 rounded-xl">{saving ? "Guardando..." : "Guardar"}</button>}
+
+                        <div className="flex-1 overflow-y-auto p-6 space-y-8 custom-scrollbar">
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                <div className="flex flex-col gap-2">
+                                    <label className="text-xs font-black text-slate-400 uppercase tracking-tighter">Fecha</label>
+                                    <input type="date" disabled={modalMode === 'view'} value={currentEntry.fecha} onChange={(e) => setCurrentEntry({...currentEntry, fecha: e.target.value})} className="p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-70 dark:text-white font-bold" />
+                                </div>
+
+                                <div className="flex flex-col gap-2">
+                                    <label className="text-xs font-black text-slate-400 uppercase tracking-tighter">Profesional a cargo</label>
+                                    <select 
+                                        disabled={modalMode === 'view'}
+                                        value={currentEntry.profesionalId}
+                                        onChange={(e) => setCurrentEntry({...currentEntry, profesionalId: e.target.value})}
+                                        className="p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-70 dark:text-white font-bold"
+                                    >
+                                        <option value="">Seleccionar...</option>
+                                        {profesionales.map(p => (
+                                            <option key={p.id} value={p.id}>{p.nombre} {p.apellido}</option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                <div className="md:col-span-3 flex flex-col gap-2">
+                                    <label className="text-xs font-black text-slate-400 uppercase tracking-tighter">Observaciones del Tratamiento</label>
+                                    <textarea rows="3" disabled={modalMode === 'view'} placeholder="Describe el tratamiento realizado..." value={currentEntry.observaciones} onChange={(e) => setCurrentEntry({...currentEntry, observaciones: e.target.value})} className="p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-70 dark:text-white resize-none" />
+                                </div>
+                            </div>
+
+                            <div className="space-y-4">
+                                <label className="text-xs font-black text-slate-400 uppercase tracking-tighter">Estado Odontograma</label>
+                                <div className={`bg-white dark:bg-slate-900 p-2 rounded-3xl border border-slate-200 dark:border-slate-800 overflow-x-auto ${modalMode === 'view' ? 'pointer-events-none grayscale-[0.3]' : ''}`}>
+                                    <Odontograma data={currentEntry.odontograma} onChange={(nuevaData) => { if (modalMode !== 'view') setCurrentEntry({...currentEntry, odontograma: nuevaData}) }} />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="p-6 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex justify-end gap-4">
+                            <button onClick={() => setIsModalOpen(false)} className="px-6 py-3 text-slate-500 font-bold hover:text-slate-700">Cerrar</button>
+                            {(modalMode === 'create' || modalMode === 'edit') && (
+                                <button onClick={handleSave} disabled={saving} className="bg-indigo-600 text-white px-10 py-3 rounded-2xl font-black shadow-xl hover:bg-indigo-700 disabled:opacity-50 flex items-center gap-2 transition-all active:scale-95">
+                                    {saving ? "Guardando..." : <><Check className="w-5 h-5" /> {modalMode === 'create' ? 'Guardar Consulta' : 'Guardar Cambios'}</>}
+                                </button>
+                            )}
                         </div>
                     </div>
                 </div>
