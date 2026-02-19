@@ -17,7 +17,7 @@ const __dirname = path.dirname(__filename);
 app.use(cors());
 app.use(express.json());
 
-// --- RUTA DE AUTENTICACIÓN (LOGIN) ---
+// --- RUTA DE AUTENTICACIÓN ---
 app.post('/api/auth/login', async (req, res) => {
   const { username, password } = req.body;
   try {
@@ -36,8 +36,19 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
-// --- PACIENTES ---
+// --- PROFESIONALES ---
+app.get('/api/profesionales', async (req, res) => {
+  try {
+    const pros = await prisma.profesional.findMany({
+      select: { id: true, nombre: true, apellido: true, especialidad: true }
+    });
+    res.json(pros);
+  } catch (error) {
+    res.status(500).json({ error: 'Error al obtener profesionales' });
+  }
+});
 
+// --- PACIENTES ---
 app.get('/api/pacientes', async (req, res) => {
   try {
     const pacientes = await prisma.paciente.findMany({
@@ -104,7 +115,6 @@ app.delete('/api/pacientes/:id', async (req, res) => {
 });
 
 // --- TURNOS ---
-
 app.get('/api/turnos', async (req, res) => {
   try {
     const turnos = await prisma.turno.findMany({
@@ -171,7 +181,6 @@ app.delete('/api/turnos/:id', async (req, res) => {
 });
 
 // --- CONSULTAS ---
-
 app.get('/api/pacientes/:id/consultas', async (req, res) => {
     try {
         const consultas = await prisma.consulta.findMany({
@@ -181,7 +190,8 @@ app.get('/api/pacientes/:id/consultas', async (req, res) => {
         res.json(consultas.map(c => ({
             ...c,
             observaciones: c.diagnostico, 
-            odontograma: c.odontogramaData
+            odontograma: c.odontogramaData,
+            profesionalId: c.profesionalId
         })));
     } catch (error) { res.status(500).json(error); }
 });
@@ -191,11 +201,9 @@ app.post('/api/pacientes/:id/consultas', async (req, res) => {
     try {
         let pId = parseInt(profesionalId);
         
-        // --- CORRECCIÓN CLAVE ---
-        // Verificamos si el profesional realmente existe en la base de datos
+        // Verificamos si el profesional existe
         const profCheck = pId ? await prisma.profesional.findUnique({ where: { id: pId } }) : null;
 
-        // Si el ID no es válido o no existe, usamos el primer profesional que encontremos
         if (!profCheck) {
             const defaultPro = await prisma.profesional.findFirst();
             if (!defaultPro) {
@@ -222,14 +230,15 @@ app.post('/api/pacientes/:id/consultas', async (req, res) => {
 });
 
 app.patch('/api/consultas/:id', async (req, res) => {
-    const { observaciones, odontograma, fecha } = req.body;
+    const { observaciones, odontograma, fecha, profesionalId } = req.body;
     try {
         const act = await prisma.consulta.update({
             where: { id: parseInt(req.params.id) },
             data: {
                 fecha: fecha ? new Date(fecha) : undefined,
                 diagnostico: observaciones,
-                odontogramaData: odontograma
+                odontogramaData: odontograma,
+                profesionalId: profesionalId ? parseInt(profesionalId) : undefined
             }
         });
         res.json(act);
