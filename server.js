@@ -17,6 +17,29 @@ const __dirname = path.dirname(__filename);
 app.use(cors());
 app.use(express.json());
 
+// Función auxiliar para que el frontend reciba lo que espera
+const formatearTurno = (t) => {
+  // Extraemos la fecha en formato YYYY-MM-DD local
+  const anio = t.fechaHoraInicio.getFullYear();
+  const mes = String(t.fechaHoraInicio.getMonth() + 1).padStart(2, '0');
+  const dia = String(t.fechaHoraInicio.getDate()).padStart(2, '0');
+  const fecha = `${anio}-${mes}-${dia}`;
+
+  // Extraemos la hora en formato HH:mm local
+  const horas = String(t.fechaHoraInicio.getHours()).padStart(2, '0');
+  const minutos = String(t.fechaHoraInicio.getMinutes()).padStart(2, '0');
+  const hora = `${horas}:${minutos}`;
+
+  const duracion = Math.round((t.fechaHoraFin - t.fechaHoraInicio) / 60000) || 30;
+
+  return {
+    ...t,
+    fecha,
+    hora,
+    duracion
+  };
+};
+
 // --- RUTA DE AUTENTICACIÓN ---
 app.post('/api/auth/login', async (req, res) => {
   const { username, password } = req.body;
@@ -46,7 +69,7 @@ app.get('/api/profesionales', async (req, res) => {
     res.json(pros || []);
   } catch (error) {
     console.error("Error profesionales:", error);
-    res.json([]); // Si falla, devolvemos lista vacía para no romper el frontend
+    res.json([]);
   }
 });
 
@@ -59,7 +82,7 @@ app.get('/api/pacientes', async (req, res) => {
     res.json(pacientes || []);
   } catch (error) {
     console.error("Error pacientes:", error);
-    res.json([]); // Si falla, devolvemos lista vacía
+    res.json([]);
   }
 });
 
@@ -126,23 +149,19 @@ app.get('/api/turnos', async (req, res) => {
         profesional: { select: { id: true, nombre: true, apellido: true } },
       }
     });
-    const turnosFormateados = turnos.map(t => ({
-      ...t,
-      fecha: t.fechaHoraInicio.toISOString().split('T')[0],
-      hora: t.fechaHoraInicio.toISOString().split('T')[1].substring(0, 5),
-      duracion: 30
-    }));
-    res.json(turnosFormateados || []);
+    res.json(turnos.map(formatearTurno));
   } catch (error) {
     console.error("Error en turnos:", error);
-    res.json([]); // Si falla, devolvemos lista vacía
+    res.json([]);
   }
 });
 
 app.post('/api/turnos', async (req, res) => {
     const { fecha, hora, pacienteId, profesionalId } = req.body;
+    // Creamos el objeto Date respetando la zona horaria local
     const inicio = new Date(`${fecha}T${hora}:00`);
     const fin = new Date(inicio.getTime() + 30 * 60000);
+    
     try {
         const nuevo = await prisma.turno.create({
             data: {
@@ -152,10 +171,16 @@ app.post('/api/turnos', async (req, res) => {
                 profesionalId: parseInt(profesionalId),
                 estado: 'PENDIENTE'
             },
-            include: { paciente: true, profesional: true }
+            include: { 
+              paciente: { select: { id: true, nombre: true, apellido: true, colorType: true } }, 
+              profesional: { select: { id: true, nombre: true, apellido: true } } 
+            }
         });
-        res.json(nuevo);
-    } catch (error) { res.status(500).json({error: "Error al crear turno"}); }
+        res.json(formatearTurno(nuevo));
+    } catch (error) { 
+        console.error(error);
+        res.status(500).json({error: "Error al crear turno"}); 
+    }
 });
 
 app.patch('/api/turnos/:id', async (req, res) => {
@@ -171,9 +196,12 @@ app.patch('/api/turnos/:id', async (req, res) => {
         const act = await prisma.turno.update({
             where: { id: parseInt(req.params.id) },
             data,
-            include: { paciente: true, profesional: true }
+            include: { 
+              paciente: { select: { id: true, nombre: true, apellido: true, colorType: true } }, 
+              profesional: { select: { id: true, nombre: true, apellido: true } } 
+            }
         });
-        res.json(act);
+        res.json(formatearTurno(act));
     } catch (error) { res.status(500).json({error: "Error al actualizar turno"}); }
 });
 
@@ -204,7 +232,6 @@ app.post('/api/pacientes/:id/consultas', async (req, res) => {
     const { observaciones, odontograma, fecha, profesionalId } = req.body;
     try {
         let pId = parseInt(profesionalId);
-        
         const profCheck = pId ? await prisma.profesional.findUnique({ where: { id: pId } }) : null;
 
         if (!profCheck) {
