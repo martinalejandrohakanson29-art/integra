@@ -9,14 +9,12 @@ import { es } from 'date-fns/locale';
 const PatientHistoryPage = () => {
     const { id } = useParams();
     const navigate = useNavigate();
-    const API_URL = import.meta.env.VITE_API_URL || '';
-    
     const [patient, setPatient] = useState(null);
     const [consultas, setConsultas] = useState([]);
     const [loading, setLoading] = useState(true);
     
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const [modalMode, setModalMode] = useState('create'); 
+    const [modalMode, setModalMode] = useState('create'); // 'create', 'view', 'edit'
     const [saving, setSaving] = useState(false);
     
     const [currentEntry, setCurrentEntry] = useState({
@@ -29,11 +27,11 @@ const PatientHistoryPage = () => {
     const loadData = async () => {
         try {
             const [resP, resC] = await Promise.all([
-                fetch(`${API_URL}/api/pacientes`),
-                fetch(`${API_URL}/api/pacientes/${id}/consultas`)
+                fetch('/api/pacientes'),
+                fetch(`/api/pacientes/${id}/consultas`)
             ]);
             const pacientes = await resP.json();
-            const found = pacientes.find(p => p.id == id);
+            const found = pacientes.find(p => p.id === id);
             setPatient(found);
             setConsultas(await resC.json());
         } catch (error) {
@@ -51,7 +49,7 @@ const PatientHistoryPage = () => {
             id: null,
             fecha: new Date().toISOString().split('T')[0],
             observaciones: '',
-            odontograma: {}
+            odontograma: patient?.odontograma || {}
         });
         setIsModalOpen(true);
     };
@@ -68,48 +66,34 @@ const PatientHistoryPage = () => {
     };
 
     const handleDeleteConsulta = async (consultaId, e) => {
-        e.stopPropagation();
+        e.stopPropagation(); // Evita abrir el modal al clickear el tacho
         if (window.confirm("¿Estás seguro de eliminar esta entrada del historial?")) {
-            await fetch(`${API_URL}/api/consultas/${consultaId}`, { method: 'DELETE' });
+            await fetch(`/api/consultas/${consultaId}`, { method: 'DELETE' });
             loadData();
         }
     };
 
     const handleSave = async () => {
-        if (!currentEntry.observaciones.trim() && modalMode === 'create') {
-            alert("Por favor, ingrese alguna observación.");
-            return;
-        }
-
         setSaving(true);
-        const user = JSON.parse(localStorage.getItem('user'));
-        
         try {
             const url = modalMode === 'create' 
-                ? `${API_URL}/api/pacientes/${id}/consultas` 
-                : `${API_URL}/api/consultas/${currentEntry.id}`;
+                ? `/api/pacientes/${id}/consultas` 
+                : `/api/consultas/${currentEntry.id}`;
             
             const method = modalMode === 'create' ? 'POST' : 'PATCH';
 
             const res = await fetch(url, {
                 method: method,
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    ...currentEntry,
-                    profesionalId: user?.id
-                })
+                body: JSON.stringify(currentEntry)
             });
 
             if (res.ok) {
                 setIsModalOpen(false);
-                await loadData();
-            } else {
-                const errorData = await res.json();
-                alert("Error al guardar: " + (errorData.error || "Error desconocido"));
+                loadData();
             }
         } catch (error) {
             console.error(error);
-            alert("No se pudo conectar con el servidor. Verifique su conexión.");
         } finally {
             setSaving(false);
         }
@@ -127,6 +111,7 @@ const PatientHistoryPage = () => {
                         <ArrowLeft className="w-4 h-4" /> Volver al buscador
                     </button>
 
+                    {/* CABECERA PACIENTE */}
                     <div className="bg-white dark:bg-slate-900 rounded-3xl p-8 shadow-sm border border-slate-200 dark:border-slate-800">
                         <div className="flex flex-col md:flex-row gap-8 items-start">
                             <div className="w-24 h-24 rounded-2xl bg-[#517A91] flex items-center justify-center text-white text-4xl font-black shadow-xl">
@@ -151,6 +136,7 @@ const PatientHistoryPage = () => {
                         </div>
                     </div>
 
+                    {/* LISTADO DE CONSULTAS */}
                     <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 overflow-hidden">
                         <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-slate-800/50">
                             <h3 className="font-bold text-slate-900 dark:text-white flex items-center gap-2">
@@ -194,6 +180,7 @@ const PatientHistoryPage = () => {
                 </div>
             </div>
 
+            {/* MODAL MULTIPROPÓSITO (VER / EDITAR / CREAR) */}
             {isModalOpen && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
                     <div className="bg-slate-50 dark:bg-slate-950 w-full max-w-5xl max-h-[90vh] rounded-3xl shadow-2xl overflow-hidden flex flex-col border border-white/10">
