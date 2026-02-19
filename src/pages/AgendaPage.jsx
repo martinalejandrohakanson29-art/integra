@@ -31,20 +31,30 @@ const AgendaPage = () => {
   const [loading, setLoading] = useState(true);
   const [filterProf, setFilterProf] = useState('all');
 
-  const loadData = async () => {
-    try {
-      const [resP, resT] = await Promise.all([
-        fetch('/api/pacientes'),
-        fetch('/api/turnos')
-      ]);
-      setPatients(await resP.json());
-      setAppointments(await resT.json());
-    } catch (error) {
-      console.error("Error al cargar datos:", error);
-    } finally {
-      setLoading(false);
+const loadData = async () => {
+  try {
+    const [resP, resT] = await Promise.all([
+      fetch('/api/pacientes'),
+      fetch('/api/turnos')
+    ]);
+
+    const dataP = await resP.json();
+    const dataT = await resT.json();
+
+    // VALIDACIÓN CRÍTICA: Solo guardar si es un array
+    if (Array.isArray(dataP)) setPatients(dataP);
+    if (Array.isArray(dataT)) setAppointments(dataT);
+    else {
+        console.error("La API no devolvió una lista de turnos:", dataT);
+        setAppointments([]); // Seteamos array vacío para evitar el crash
     }
-  };
+  } catch (error) {
+    console.error("Error al cargar datos:", error);
+    setAppointments([]); // Evita que filteredAppointments.find falle
+  } finally {
+    setLoading(false);
+  }
+};
 
   useEffect(() => { loadData(); }, []);
 
