@@ -11,10 +11,11 @@ model Profesional {
   id           Int       @id @default(autoincrement())
   nombre       String
   apellido     String
-  email        String    @unique
-  password     String
+  email        String    @unique // Este será el "Usuario" para iniciar sesión
+  password     String            // Esta será la contraseña
   especialidad String?
   telefono     String?
+  colorType    String    @default("default") // NUEVO: Color para la agenda
   turnos       Turno[]
   consultas    Consulta[]
   createdAt    DateTime  @default(now())
