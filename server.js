@@ -32,13 +32,19 @@ const formatearTurno = (t) => {
 // --- RUTA DE AUTENTICACIÓN ---
 app.post('/api/auth/login', async (req, res) => {
   const { username, password } = req.body;
+  
+  // Limpiamos espacios accidentales al inicio o al final del texto
+  const cleanUsername = (username || '').trim();
+
   try {
-    // 1. Revisamos si la base de datos de profesionales está completamente vacía
-    const cantidadProfesionales = await prisma.profesional.count();
-    
-    // Si no hay nadie, creamos el administrador por defecto en este mismo momento
-    if (cantidadProfesionales === 0) {
-        await prisma.profesional.create({
+    // 1. Buscamos al profesional por su email
+    let profesional = await prisma.profesional.findUnique({
+      where: { email: cleanUsername } 
+    });
+
+    // 2. SISTEMA DE RESCATE: Si no existe el admin, lo forzamos a crearse ahora mismo
+    if (!profesional && cleanUsername === 'admin@integra.com') {
+        profesional = await prisma.profesional.create({
             data: {
                 nombre: "Admin", 
                 apellido: "Integra", 
@@ -48,14 +54,10 @@ app.post('/api/auth/login', async (req, res) => {
                 colorType: "default"
             }
         });
-        console.log("Se ha creado el usuario administrador por defecto.");
+        console.log("Usuario de rescate admin@integra.com creado exitosamente.");
     }
 
-    // 2. Ahora sí, buscamos al usuario e intentamos iniciar sesión
-    const profesional = await prisma.profesional.findUnique({
-      where: { email: username } 
-    });
-
+    // 3. Verificamos la contraseña (distingue mayúsculas y minúsculas)
     if (profesional && profesional.password === password) {
       const { password: _, ...userWithoutPassword } = profesional;
       res.json(userWithoutPassword);
