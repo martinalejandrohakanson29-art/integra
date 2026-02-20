@@ -17,27 +17,16 @@ const __dirname = path.dirname(__filename);
 app.use(cors());
 app.use(express.json());
 
-// Función auxiliar para que el frontend reciba lo que espera
 const formatearTurno = (t) => {
-  // Extraemos la fecha en formato YYYY-MM-DD local
   const anio = t.fechaHoraInicio.getFullYear();
   const mes = String(t.fechaHoraInicio.getMonth() + 1).padStart(2, '0');
   const dia = String(t.fechaHoraInicio.getDate()).padStart(2, '0');
   const fecha = `${anio}-${mes}-${dia}`;
-
-  // Extraemos la hora en formato HH:mm local
   const horas = String(t.fechaHoraInicio.getHours()).padStart(2, '0');
   const minutos = String(t.fechaHoraInicio.getMinutes()).padStart(2, '0');
   const hora = `${horas}:${minutos}`;
-
   const duracion = Math.round((t.fechaHoraFin - t.fechaHoraInicio) / 60000) || 30;
-
-  return {
-    ...t,
-    fecha,
-    hora,
-    duracion
-  };
+  return { ...t, fecha, hora, duracion };
 };
 
 // --- RUTA DE AUTENTICACIÓN ---
@@ -45,7 +34,7 @@ app.post('/api/auth/login', async (req, res) => {
   const { username, password } = req.body;
   try {
     const profesional = await prisma.profesional.findUnique({
-      where: { email: username }
+      where: { email: username } // El email es el nombre de usuario
     });
 
     if (profesional && profesional.password === password) {
@@ -55,35 +44,66 @@ app.post('/api/auth/login', async (req, res) => {
       res.status(401).json({ error: 'Usuario o contraseña incorrectos' });
     }
   } catch (error) {
-    console.error("Error en login:", error);
     res.status(500).json({ error: 'Error en el servidor' });
   }
 });
 
-// --- PROFESIONALES ---
+// --- PROFESIONALES (NUEVO CRUD COMPLETO) ---
 app.get('/api/profesionales', async (req, res) => {
   try {
     const pros = await prisma.profesional.findMany({
-      select: { id: true, nombre: true, apellido: true, especialidad: true }
+      orderBy: { createdAt: 'desc' },
+      select: { id: true, nombre: true, apellido: true, especialidad: true, email: true, telefono: true, colorType: true } // No enviamos el password por seguridad
     });
     res.json(pros || []);
+  } catch (error) { res.json([]); }
+});
+
+app.get('/api/profesionales/:id', async (req, res) => {
+  try {
+    const pro = await prisma.profesional.findUnique({ where: { id: parseInt(req.params.id) } });
+    if (!pro) return res.status(404).json({ error: 'No encontrado' });
+    res.json(pro);
+  } catch (error) { res.status(500).json({ error: 'Error al buscar' }); }
+});
+
+app.post('/api/profesionales', async (req, res) => {
+  try {
+    const nuevo = await prisma.profesional.create({ data: req.body });
+    const { password, ...proSinPass } = nuevo;
+    res.status(201).json(proSinPass);
   } catch (error) {
-    console.error("Error profesionales:", error);
-    res.json([]); 
+    res.status(400).json({ error: 'El correo/usuario ya está registrado o hay un error.' });
   }
+});
+
+app.patch('/api/profesionales/:id', async (req, res) => {
+  try {
+    const { id, turnos, consultas, createdAt, updatedAt, ...datosParaActualizar } = req.body;
+    const actualizado = await prisma.profesional.update({
+      where: { id: parseInt(req.params.id) },
+      data: datosParaActualizar
+    });
+    res.json(actualizado);
+  } catch (error) { res.status(500).json({ error: 'Error al actualizar' }); }
+});
+
+app.delete('/api/profesionales/:id', async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    await prisma.turno.deleteMany({ where: { profesionalId: id } });
+    await prisma.consulta.deleteMany({ where: { profesionalId: id } });
+    await prisma.profesional.delete({ where: { id } });
+    res.json({ message: 'Eliminado correctamente' });
+  } catch (error) { res.status(500).json({ error: 'Error al eliminar' }); }
 });
 
 // --- PACIENTES ---
 app.get('/api/pacientes', async (req, res) => {
   try {
-    const pacientes = await prisma.paciente.findMany({
-      orderBy: { createdAt: 'desc' },
-    });
+    const pacientes = await prisma.paciente.findMany({ orderBy: { createdAt: 'desc' } });
     res.json(pacientes || []);
-  } catch (error) {
-    console.error("Error al listar pacientes:", error);
-    res.json([]); 
-  }
+  } catch (error) { res.json([]); }
 });
 
 app.get('/api/pacientes/:id', async (req, res) => {
@@ -97,46 +117,29 @@ app.get('/api/pacientes/:id', async (req, res) => {
     });
     if (!paciente) return res.status(404).json({ error: 'No encontrado' });
     res.json(paciente);
-  } catch (error) {
-    res.status(500).json({ error: 'Error al buscar paciente' });
-  }
+  } catch (error) { res.status(500).json({ error: 'Error al buscar paciente' }); }
 });
 
 app.post('/api/pacientes', async (req, res) => {
   try {
     const nuevo = await prisma.paciente.create({
-      data: { 
-        ...req.body, 
-        fechaNacimiento: new Date(req.body.fechaNacimiento) 
-      }
+      data: { ...req.body, fechaNacimiento: new Date(req.body.fechaNacimiento) }
     });
     res.status(201).json(nuevo);
   } catch (error) {
-    console.error("Error detallado al crear paciente:", error);
-    res.status(400).json({ 
-      error: error.code === 'P2002' 
-        ? 'El DNI ingresado ya existe en el sistema.' 
-        : 'Error interno al procesar los datos (verificar esquema de DB).' 
-    });
+    res.status(400).json({ error: 'Error interno al procesar los datos.' });
   }
 });
 
 app.patch('/api/pacientes/:id', async (req, res) => {
   try {
     const { id, consultas, turnos, createdAt, updatedAt, fechaNacimiento, ...datosParaActualizar } = req.body;
-
     const actualizado = await prisma.paciente.update({
       where: { id: parseInt(req.params.id) },
-      data: { 
-        ...datosParaActualizar, 
-        fechaNacimiento: fechaNacimiento ? new Date(fechaNacimiento) : undefined 
-      }
+      data: { ...datosParaActualizar, fechaNacimiento: fechaNacimiento ? new Date(fechaNacimiento) : undefined }
     });
     res.json(actualizado);
-  } catch (error) {
-    console.error("Error detallado al actualizar paciente:", error);
-    res.status(500).json({ error: 'Error al actualizar' });
-  }
+  } catch (error) { res.status(500).json({ error: 'Error al actualizar' }); }
 });
 
 app.delete('/api/pacientes/:id', async (req, res) => {
@@ -146,9 +149,7 @@ app.delete('/api/pacientes/:id', async (req, res) => {
     await prisma.consulta.deleteMany({ where: { pacienteId: id } });
     await prisma.paciente.delete({ where: { id } });
     res.json({ message: 'Eliminado correctamente' });
-  } catch (error) {
-    res.status(500).json({ error: 'Error al eliminar' });
-  }
+  } catch (error) { res.status(500).json({ error: 'Error al eliminar' }); }
 });
 
 // --- TURNOS ---
@@ -157,14 +158,11 @@ app.get('/api/turnos', async (req, res) => {
     const turnos = await prisma.turno.findMany({
       include: {
         paciente: { select: { id: true, nombre: true, apellido: true, colorType: true } },
-        profesional: { select: { id: true, nombre: true, apellido: true } },
+        profesional: { select: { id: true, nombre: true, apellido: true, colorType: true } },
       }
     });
     res.json(turnos.map(formatearTurno));
-  } catch (error) {
-    console.error("Error en turnos:", error);
-    res.json([]);
-  }
+  } catch (error) { res.json([]); }
 });
 
 app.post('/api/turnos', async (req, res) => {
@@ -181,11 +179,8 @@ app.post('/api/turnos', async (req, res) => {
             if (!defaultPro) {
                 const nuevoPro = await prisma.profesional.create({
                     data: {
-                        nombre: "Admin",
-                        apellido: "Integra",
-                        email: "admin@integra.com",
-                        password: "admin",
-                        especialidad: "General"
+                        nombre: "Admin", apellido: "Integra", email: "admin@integra.com",
+                        password: "admin", especialidad: "General"
                     }
                 });
                 pId = nuevoPro.id;
@@ -196,50 +191,31 @@ app.post('/api/turnos', async (req, res) => {
 
         const nuevo = await prisma.turno.create({
             data: {
-                fechaHoraInicio: inicio,
-                fechaHoraFin: fin,
-                pacienteId: parseInt(pacienteId),
-                profesionalId: pId, 
-                estado: 'PENDIENTE'
+                fechaHoraInicio: inicio, fechaHoraFin: fin,
+                pacienteId: parseInt(pacienteId), profesionalId: pId, estado: 'PENDIENTE'
             },
             include: { 
               paciente: { select: { id: true, nombre: true, apellido: true, colorType: true } }, 
-              profesional: { select: { id: true, nombre: true, apellido: true } } 
+              profesional: { select: { id: true, nombre: true, apellido: true, colorType: true } } 
             }
         });
         res.json(formatearTurno(nuevo));
-    } catch (error) { 
-        console.error("Error al crear turno:", error);
-        res.status(500).json({error: "Error al crear turno"}); 
-    }
+    } catch (error) { res.status(500).json({error: "Error al crear turno"}); }
 });
 
 app.patch('/api/turnos/:id', async (req, res) => {
     const { fecha, hora, duracion, estado } = req.body;
-    
     try {
-        // 1. Buscamos el turno original en la base de datos
-        const turnoExistente = await prisma.turno.findUnique({ 
-            where: { id: parseInt(req.params.id) } 
-        });
-
-        if (!turnoExistente) {
-            return res.status(404).json({ error: "Turno no encontrado" });
-        }
+        const turnoExistente = await prisma.turno.findUnique({ where: { id: parseInt(req.params.id) } });
+        if (!turnoExistente) return res.status(404).json({ error: "Turno no encontrado" });
 
         let data = {};
-        
-        // 2a. Si nos envían fecha y hora nuevas (ej: al mover la tarjeta de lugar)
         if (fecha && hora) {
             data.fechaHoraInicio = new Date(`${fecha}T${hora}:00`);
             data.fechaHoraFin = new Date(data.fechaHoraInicio.getTime() + (duracion || 30) * 60000);
-        } 
-        // 2b. Si SOLO nos envían la duración nueva (ej: al hacer clic en las flechas)
-        else if (duracion) {
-            // Tomamos la hora de inicio que YA tenía y le sumamos los nuevos minutos
+        } else if (duracion) {
             data.fechaHoraFin = new Date(turnoExistente.fechaHoraInicio.getTime() + duracion * 60000);
         }
-
         if (estado) data.estado = estado;
         
         const act = await prisma.turno.update({
@@ -247,14 +223,11 @@ app.patch('/api/turnos/:id', async (req, res) => {
             data,
             include: { 
               paciente: { select: { id: true, nombre: true, apellido: true, colorType: true } }, 
-              profesional: { select: { id: true, nombre: true, apellido: true } } 
+              profesional: { select: { id: true, nombre: true, apellido: true, colorType: true } } 
             }
         });
         res.json(formatearTurno(act));
-    } catch (error) { 
-        console.error("Error al actualizar turno:", error);
-        res.status(500).json({error: "Error al actualizar turno"}); 
-    }
+    } catch (error) { res.status(500).json({error: "Error al actualizar turno"}); }
 });
 
 app.delete('/api/turnos/:id', async (req, res) => {
@@ -272,10 +245,7 @@ app.get('/api/pacientes/:id/consultas', async (req, res) => {
             orderBy: { fecha: 'desc' }
         });
         res.json(consultas.map(c => ({
-            ...c,
-            observaciones: c.diagnostico, 
-            odontograma: c.odontogramaData,
-            profesionalId: c.profesionalId
+            ...c, observaciones: c.diagnostico, odontograma: c.odontogramaData, profesionalId: c.profesionalId
         })));
     } catch (error) { res.json([]); }
 });
@@ -288,26 +258,19 @@ app.post('/api/pacientes/:id/consultas', async (req, res) => {
 
         if (!profCheck) {
             const defaultPro = await prisma.profesional.findFirst();
-            if (!defaultPro) {
-                return res.status(400).json({ error: 'No hay profesionales registrados.' });
-            }
+            if (!defaultPro) return res.status(400).json({ error: 'No hay profesionales registrados.' });
             pId = defaultPro.id;
         }
 
         const nueva = await prisma.consulta.create({
             data: {
-                pacienteId: parseInt(req.params.id),
-                profesionalId: pId,
-                fecha: new Date(fecha),
-                diagnostico: observaciones || "",
-                tratamiento: "Consulta General",
-                odontogramaData: odontograma || {}
+                pacienteId: parseInt(req.params.id), profesionalId: pId,
+                fecha: new Date(fecha), diagnostico: observaciones || "",
+                tratamiento: "Consulta General", odontogramaData: odontograma || {}
             }
         });
         res.json(nueva);
-    } catch (error) { 
-        res.status(500).json({ error: 'Error al guardar la consulta.' }); 
-    }
+    } catch (error) { res.status(500).json({ error: 'Error al guardar la consulta.' }); }
 });
 
 app.patch('/api/consultas/:id', async (req, res) => {
@@ -317,8 +280,7 @@ app.patch('/api/consultas/:id', async (req, res) => {
             where: { id: parseInt(req.params.id) },
             data: {
                 fecha: fecha ? new Date(fecha) : undefined,
-                diagnostico: observaciones,
-                odontogramaData: odontograma,
+                diagnostico: observaciones, odontogramaData: odontograma,
                 profesionalId: profesionalId ? parseInt(profesionalId) : undefined
             }
         });
@@ -334,10 +296,6 @@ app.delete('/api/consultas/:id', async (req, res) => {
 });
 
 app.use(express.static(path.join(__dirname, 'dist')));
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'dist', 'index.html'));
-});
+app.get('*', (req, res) => { res.sendFile(path.join(__dirname, 'dist', 'index.html')); });
 
-app.listen(port, () => {
-  console.log(`Servidor corriendo en el puerto ${port}`);
-});
+app.listen(port, () => { console.log(`Servidor corriendo en el puerto ${port}`); });
