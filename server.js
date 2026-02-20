@@ -33,8 +33,27 @@ const formatearTurno = (t) => {
 app.post('/api/auth/login', async (req, res) => {
   const { username, password } = req.body;
   try {
+    // 1. Revisamos si la base de datos de profesionales está completamente vacía
+    const cantidadProfesionales = await prisma.profesional.count();
+    
+    // Si no hay nadie, creamos el administrador por defecto en este mismo momento
+    if (cantidadProfesionales === 0) {
+        await prisma.profesional.create({
+            data: {
+                nombre: "Admin", 
+                apellido: "Integra", 
+                email: "admin@integra.com",
+                password: "admin", 
+                especialidad: "General",
+                colorType: "default"
+            }
+        });
+        console.log("Se ha creado el usuario administrador por defecto.");
+    }
+
+    // 2. Ahora sí, buscamos al usuario e intentamos iniciar sesión
     const profesional = await prisma.profesional.findUnique({
-      where: { email: username } // El email es el nombre de usuario
+      where: { email: username } 
     });
 
     if (profesional && profesional.password === password) {
@@ -44,6 +63,7 @@ app.post('/api/auth/login', async (req, res) => {
       res.status(401).json({ error: 'Usuario o contraseña incorrectos' });
     }
   } catch (error) {
+    console.error("Error en login:", error);
     res.status(500).json({ error: 'Error en el servidor' });
   }
 });
