@@ -123,8 +123,6 @@ app.post('/api/pacientes', async (req, res) => {
 
 app.patch('/api/pacientes/:id', async (req, res) => {
   try {
-    // EXTRAEMOS (destructuramos) los datos que Prisma NO debe intentar actualizar
-    // Todo lo demás quedará guardado dentro de "datosParaActualizar"
     const { id, consultas, turnos, createdAt, updatedAt, fechaNacimiento, ...datosParaActualizar } = req.body;
 
     const actualizado = await prisma.paciente.update({
@@ -175,12 +173,36 @@ app.post('/api/turnos', async (req, res) => {
     const fin = new Date(inicio.getTime() + 30 * 60000);
     
     try {
+        // --- VALIDACIÓN Y AUTOCORRECCIÓN DEL PROFESIONAL ---
+        let pId = parseInt(profesionalId);
+        let profCheck = pId ? await prisma.profesional.findUnique({ where: { id: pId } }) : null;
+
+        if (!profCheck) {
+            const defaultPro = await prisma.profesional.findFirst();
+            if (!defaultPro) {
+                // Si la DB está completamente vacía, creamos un administrador por defecto
+                const nuevoPro = await prisma.profesional.create({
+                    data: {
+                        nombre: "Admin",
+                        apellido: "Integra",
+                        email: "admin@integra.com",
+                        password: "admin",
+                        especialidad: "General"
+                    }
+                });
+                pId = nuevoPro.id;
+            } else {
+                pId = defaultPro.id;
+            }
+        }
+        // ----------------------------------------------------
+
         const nuevo = await prisma.turno.create({
             data: {
                 fechaHoraInicio: inicio,
                 fechaHoraFin: fin,
                 pacienteId: parseInt(pacienteId),
-                profesionalId: parseInt(profesionalId),
+                profesionalId: pId, // Usamos el ID seguro que conseguimos arriba
                 estado: 'PENDIENTE'
             },
             include: { 
