@@ -81,7 +81,7 @@ app.get('/api/pacientes', async (req, res) => {
     });
     res.json(pacientes || []);
   } catch (error) {
-    console.error("Error al listar pacientes (Verificá si corriste npx prisma migrate dev):", error);
+    console.error("Error al listar pacientes:", error);
     res.json([]); 
   }
 });
@@ -112,9 +112,7 @@ app.post('/api/pacientes', async (req, res) => {
     });
     res.status(201).json(nuevo);
   } catch (error) {
-    // Log detallado para debugging en Railway
     console.error("Error detallado al crear paciente:", error);
-    
     res.status(400).json({ 
       error: error.code === 'P2002' 
         ? 'El DNI ingresado ya existe en el sistema.' 
@@ -125,15 +123,20 @@ app.post('/api/pacientes', async (req, res) => {
 
 app.patch('/api/pacientes/:id', async (req, res) => {
   try {
+    // EXTRAEMOS (destructuramos) los datos que Prisma NO debe intentar actualizar
+    // Todo lo demás quedará guardado dentro de "datosParaActualizar"
+    const { id, consultas, turnos, createdAt, updatedAt, fechaNacimiento, ...datosParaActualizar } = req.body;
+
     const actualizado = await prisma.paciente.update({
       where: { id: parseInt(req.params.id) },
       data: { 
-        ...req.body, 
-        fechaNacimiento: req.body.fechaNacimiento ? new Date(req.body.fechaNacimiento) : undefined 
+        ...datosParaActualizar, 
+        fechaNacimiento: fechaNacimiento ? new Date(fechaNacimiento) : undefined 
       }
     });
     res.json(actualizado);
   } catch (error) {
+    console.error("Error detallado al actualizar paciente:", error);
     res.status(500).json({ error: 'Error al actualizar' });
   }
 });
