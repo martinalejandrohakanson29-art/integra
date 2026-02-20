@@ -173,14 +173,12 @@ app.post('/api/turnos', async (req, res) => {
     const fin = new Date(inicio.getTime() + 30 * 60000);
     
     try {
-        // --- VALIDACIÓN Y AUTOCORRECCIÓN DEL PROFESIONAL ---
         let pId = parseInt(profesionalId);
         let profCheck = pId ? await prisma.profesional.findUnique({ where: { id: pId } }) : null;
 
         if (!profCheck) {
             const defaultPro = await prisma.profesional.findFirst();
             if (!defaultPro) {
-                // Si la DB está completamente vacía, creamos un administrador por defecto
                 const nuevoPro = await prisma.profesional.create({
                     data: {
                         nombre: "Admin",
@@ -195,14 +193,13 @@ app.post('/api/turnos', async (req, res) => {
                 pId = defaultPro.id;
             }
         }
-        // ----------------------------------------------------
 
         const nuevo = await prisma.turno.create({
             data: {
                 fechaHoraInicio: inicio,
                 fechaHoraFin: fin,
                 pacienteId: parseInt(pacienteId),
-                profesionalId: pId, // Usamos el ID seguro que conseguimos arriba
+                profesionalId: pId, 
                 estado: 'PENDIENTE'
             },
             include: { 
@@ -219,14 +216,32 @@ app.post('/api/turnos', async (req, res) => {
 
 app.patch('/api/turnos/:id', async (req, res) => {
     const { fecha, hora, duracion, estado } = req.body;
-    let data = {};
-    if (fecha && hora) {
-        data.fechaHoraInicio = new Date(`${fecha}T${hora}:00`);
-        data.fechaHoraFin = new Date(data.fechaHoraInicio.getTime() + (duracion || 30) * 60000);
-    }
-    if (estado) data.estado = estado;
     
     try {
+        // 1. Buscamos el turno original en la base de datos
+        const turnoExistente = await prisma.turno.findUnique({ 
+            where: { id: parseInt(req.params.id) } 
+        });
+
+        if (!turnoExistente) {
+            return res.status(404).json({ error: "Turno no encontrado" });
+        }
+
+        let data = {};
+        
+        // 2a. Si nos envían fecha y hora nuevas (ej: al mover la tarjeta de lugar)
+        if (fecha && hora) {
+            data.fechaHoraInicio = new Date(`${fecha}T${hora}:00`);
+            data.fechaHoraFin = new Date(data.fechaHoraInicio.getTime() + (duracion || 30) * 60000);
+        } 
+        // 2b. Si SOLO nos envían la duración nueva (ej: al hacer clic en las flechas)
+        else if (duracion) {
+            // Tomamos la hora de inicio que YA tenía y le sumamos los nuevos minutos
+            data.fechaHoraFin = new Date(turnoExistente.fechaHoraInicio.getTime() + duracion * 60000);
+        }
+
+        if (estado) data.estado = estado;
+        
         const act = await prisma.turno.update({
             where: { id: parseInt(req.params.id) },
             data,
