@@ -8,7 +8,9 @@ import {
   ChevronDown, 
   Trash2,
   Filter,
-  Calendar
+  Calendar,
+  X,        // Nuevo ícono agregado
+  Clock     // Nuevo ícono agregado
 } from 'lucide-react';
 import { format, addDays, startOfWeek, addWeeks, subWeeks, startOfToday } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -30,6 +32,9 @@ const AgendaPage = () => {
   const [patients, setPatients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filterProf, setFilterProf] = useState('all');
+  
+  // NUEVO ESTADO: Para controlar la ventana modal de detalles del paciente
+  const [patientDetailModal, setPatientDetailModal] = useState(null);
 
   const loadData = async () => {
     try {
@@ -187,8 +192,8 @@ const AgendaPage = () => {
 
   return (
     <MainLayout title={`Agenda - ${capitalizedTitle}`} activePage="agenda" extraHeader={headerActions}>
-      <div className="flex h-full gap-4 overflow-hidden">
-        <div className="w-72 flex flex-col gap-4 overflow-hidden">
+      <div className="flex h-full gap-4 overflow-hidden relative">
+        <div className="w-72 flex flex-col gap-4 overflow-hidden z-10">
           <div className="flex-1 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 flex flex-col overflow-hidden">
             <div className="p-4 border-b border-slate-100 dark:border-slate-700">
               <h2 className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-3 flex items-center gap-2">
@@ -201,9 +206,15 @@ const AgendaPage = () => {
             </div>
             <div className="flex-1 overflow-y-auto p-3 space-y-2 custom-scrollbar">
               {filteredPatients.map(p => (
-                <div key={p.id} draggable onDragStart={(e) => handleDragStart(e, p, "patient")} className={`group flex items-center gap-3 p-3 border border-transparent rounded-xl cursor-grab active:cursor-grabbing hover:border-indigo-400 transition-all shadow-sm ${colorOptions[p.colorType]?.bg || 'bg-slate-50'}`}>
+                <div 
+                  key={p.id} 
+                  draggable 
+                  onDragStart={(e) => handleDragStart(e, p, "patient")} 
+                  onClick={() => setPatientDetailModal(p)} // NUEVO: Abre el modal al hacer clic
+                  className={`group flex items-center gap-3 p-3 border border-transparent rounded-xl cursor-grab active:cursor-grabbing hover:border-indigo-400 transition-all shadow-sm ${colorOptions[p.colorType]?.bg || 'bg-slate-50'}`}
+                >
                   <GripVertical className="w-4 h-4 text-slate-400" />
-                  <div className="overflow-hidden leading-tight">
+                  <div className="overflow-hidden leading-tight flex-1">
                     <p className="text-sm font-bold text-slate-700 dark:text-slate-200 truncate">{p.nombre}</p>
                     <p className="text-[10px] text-slate-500 font-mono">{p.dni}</p>
                   </div>
@@ -231,7 +242,7 @@ const AgendaPage = () => {
           </div>
         </div>
 
-        <div className="flex-1 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden flex flex-col min-w-[800px] relative">
+        <div className="flex-1 bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden flex flex-col min-w-[800px] relative z-0">
           <div className="grid grid-cols-[80px_1fr_1fr_1fr_1fr_1fr] border-b border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/50 sticky top-0 z-20">
             <div className="p-3 border-r border-slate-200"></div>
             {days.map((day) => (
@@ -295,6 +306,85 @@ const AgendaPage = () => {
           </div>
         </div>
       </div>
+
+      {/* NUEVO MODAL: Detalle de turnos del paciente */}
+      {patientDetailModal && (
+        <div 
+          className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+          onClick={() => setPatientDetailModal(null)}
+        >
+          <div 
+            className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden flex flex-col border border-slate-200 dark:border-slate-800"
+            onClick={e => e.stopPropagation()} // Evita que el click cierre el modal si clickeas adentro
+          >
+            <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-800/50">
+              <div>
+                <h2 className="text-xl font-black text-slate-900 dark:text-white flex items-center gap-2">
+                  <Calendar className="w-5 h-5 text-indigo-500" />
+                  Turnos Agendados
+                </h2>
+                <p className="text-xs text-slate-500 font-bold uppercase tracking-widest mt-1">
+                  Paciente: {patientDetailModal.nombre}
+                </p>
+              </div>
+              <button onClick={() => setPatientDetailModal(null)} className="p-2 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full transition-colors">
+                <X className="w-5 h-5 text-slate-400" />
+              </button>
+            </div>
+            
+            <div className="p-6 max-h-[60vh] overflow-y-auto custom-scrollbar flex flex-col gap-3">
+              {(() => {
+                // Filtramos los turnos para este paciente específico y los ordenamos por fecha
+                const turnosDelPaciente = appointments
+                  .filter(a => a.paciente?.id === patientDetailModal.id)
+                  .sort((a, b) => new Date(`${a.fecha}T${a.hora}`) - new Date(`${b.fecha}T${b.hora}`));
+                
+                if (turnosDelPaciente.length === 0) {
+                  return (
+                    <div className="text-center py-10 bg-slate-50 dark:bg-slate-800/30 rounded-2xl border border-dashed border-slate-200 dark:border-slate-700">
+                      <p className="text-slate-400 font-bold">Este paciente no tiene turnos agendados.</p>
+                    </div>
+                  );
+                }
+
+                const hoy = format(new Date(), 'yyyy-MM-dd');
+
+                return turnosDelPaciente.map(turno => {
+                  const esPasado = turno.fecha < hoy;
+                  return (
+                    <div key={turno.id} className={`p-4 rounded-2xl border ${esPasado ? 'border-slate-100 bg-slate-50/50 dark:border-slate-800 dark:bg-slate-800/30 opacity-75' : 'border-indigo-100 bg-indigo-50/50 dark:border-indigo-900/30 dark:bg-indigo-900/20 shadow-sm'}`}>
+                      <div className="flex justify-between items-start mb-2">
+                        <div className="flex items-center gap-2">
+                          <Clock className={`w-4 h-4 ${esPasado ? 'text-slate-400' : 'text-indigo-500'}`} />
+                          <span className={`font-bold ${esPasado ? 'text-slate-600 dark:text-slate-400' : 'text-indigo-700 dark:text-indigo-300'} capitalize`}>
+                            {format(new Date(`${turno.fecha}T00:00:00`), "EEEE, dd 'de' MMMM yyyy", { locale: es })}
+                          </span>
+                        </div>
+                        <span className="text-xs font-black bg-white dark:bg-slate-800 px-2 py-1 rounded-md shadow-sm text-slate-700 dark:text-slate-300">
+                          {turno.hora} hs
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400 mt-2">
+                        <User className="w-3.5 h-3.5" />
+                        <span>Profesional: <strong>{turno.profesional?.nombre || 'Sin asignar'}</strong></span>
+                      </div>
+                      <div className="mt-1 pl-5 text-[11px] text-slate-500 font-medium">
+                        Duración: {turno.duracion} minutos
+                      </div>
+                    </div>
+                  );
+                });
+              })()}
+            </div>
+            
+            <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 flex justify-end">
+                <button onClick={() => setPatientDetailModal(null)} className="px-6 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-bold rounded-xl shadow-sm hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
+                  Cerrar
+                </button>
+            </div>
+          </div>
+        </div>
+      )}
     </MainLayout>
   );
 };
