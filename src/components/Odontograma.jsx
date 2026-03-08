@@ -1,7 +1,11 @@
-import React from 'react';
+import React, { useState } from 'react';
 import Diente from './Diente';
+import { Eraser, X } from 'lucide-react';
 
 const Odontograma = ({ data = {}, onChange }) => {
+  // Estado para la barra de herramientas. Por defecto arranca en 'blue' (Pintar Azul)
+  const [herramienta, setHerramienta] = useState('blue');
+
   // Configuración de los cuadrantes según la ficha física
   const adultoSupDer = [18, 17, 16, 15, 14, 13, 12, 11];
   const adultoSupIzq = [21, 22, 23, 24, 25, 26, 27, 28];
@@ -13,8 +17,8 @@ const Odontograma = ({ data = {}, onChange }) => {
   const infantilInfDer = [85, 84, 83, 82, 81];
   const infantilInfIzq = [71, 72, 73, 74, 75];
 
-  const handleUpdate = (num, secc) => {
-    onChange({ ...data, [num]: secc });
+  const handleUpdate = (num, estadoDiente) => {
+    onChange({ ...data, [num]: estadoDiente });
   };
 
   const RenderFila = ({ lista, posicionLabel = 'top' }) => (
@@ -22,7 +26,12 @@ const Odontograma = ({ data = {}, onChange }) => {
       {lista.map(num => (
         <div key={num} className="flex flex-col items-center gap-1">
           {posicionLabel === 'top' && <span className="text-[10px] font-bold text-slate-500">{num}</span>}
-          <Diente numero={num} secciones={data[num]} onChange={handleUpdate} />
+          <Diente 
+            numero={num} 
+            estado={data[num] || {}} 
+            herramientaActual={herramienta} 
+            onChange={handleUpdate} 
+          />
           {posicionLabel === 'bottom' && <span className="text-[10px] font-bold text-slate-500">{num}</span>}
         </div>
       ))}
@@ -30,7 +39,42 @@ const Odontograma = ({ data = {}, onChange }) => {
   );
 
   return (
-    <div className="bg-white dark:bg-slate-900 p-8 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-x-auto">
+    <div className="bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-x-auto flex flex-col gap-6">
+      
+      {/* BARRA DE HERRAMIENTAS */}
+      <div className="flex flex-wrap items-center gap-2 bg-slate-50 dark:bg-slate-800/50 p-2 rounded-lg border border-slate-100 dark:border-slate-800 self-start">
+        <span className="text-xs font-bold text-slate-500 mr-2 uppercase tracking-wider hidden sm:block">Herramientas:</span>
+        
+        {/* Herramienta: Pintar Azul */}
+        <button type="button" onClick={() => setHerramienta('blue')} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${herramienta === 'blue' ? 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 ring-2 ring-indigo-500 border-transparent' : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700'}`}>
+            <div className="w-3 h-3 rounded-full bg-indigo-500"></div> Azul
+        </button>
+        
+        {/* Herramienta: Pintar Rojo */}
+        <button type="button" onClick={() => setHerramienta('red')} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${herramienta === 'red' ? 'bg-rose-100 dark:bg-rose-900/40 text-rose-700 dark:text-rose-300 ring-2 ring-rose-500 border-transparent' : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700'}`}>
+            <div className="w-3 h-3 rounded-full bg-rose-500"></div> Rojo
+        </button>
+
+        <div className="w-px h-6 bg-slate-300 dark:bg-slate-600 mx-1"></div>
+
+        {/* Herramienta: Cruz Azul */}
+        <button type="button" onClick={() => setHerramienta('x-blue')} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${herramienta === 'x-blue' ? 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 ring-2 ring-indigo-500 border-transparent' : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700'}`}>
+            <X className="w-3.5 h-3.5 text-indigo-500 stroke-[3px]" /> Marca Azul
+        </button>
+        
+        {/* Herramienta: Cruz Roja */}
+        <button type="button" onClick={() => setHerramienta('x-red')} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${herramienta === 'x-red' ? 'bg-rose-100 dark:bg-rose-900/40 text-rose-700 dark:text-rose-300 ring-2 ring-rose-500 border-transparent' : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700'}`}>
+            <X className="w-3.5 h-3.5 text-rose-500 stroke-[3px]" /> Marca Roja
+        </button>
+
+        <div className="w-px h-6 bg-slate-300 dark:bg-slate-600 mx-1"></div>
+
+        {/* Herramienta: Borrar */}
+        <button type="button" onClick={() => setHerramienta('borrar')} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${herramienta === 'borrar' ? 'bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-white ring-2 ring-slate-500 border-transparent' : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700'}`}>
+            <Eraser className="w-3.5 h-3.5" /> Borrar
+        </button>
+      </div>
+
       <div className="min-w-[850px] flex flex-col gap-10">
         
         {/* BLOQUE ADULTOS */}
@@ -48,7 +92,7 @@ const Odontograma = ({ data = {}, onChange }) => {
           </div>
         </div>
 
-        {/* BLOQUE INFANTIL (Dentadura de leche) */}
+        {/* BLOQUE INFANTIL */}
         <div className="flex items-center gap-4">
           <span className="text-[10px] font-black text-slate-300 uppercase rotate-180 [writing-mode:vertical-lr]">Derecha</span>
           <div className="flex-1 relative border-2 border-slate-100 dark:border-slate-800 p-6 rounded-lg bg-slate-50/30 dark:bg-slate-800/20">
