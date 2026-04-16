@@ -281,7 +281,8 @@ app.get('/api/pacientes/:id/consultas', async (req, res) => {
             orderBy: { fecha: 'desc' }
         });
         res.json(consultas.map(c => ({
-            ...c, observaciones: c.diagnostico, odontograma: c.odontogramaData, profesionalId: c.profesionalId
+            ...c, observaciones: c.diagnostico, odontograma: c.odontogramaData, profesionalId: c.profesionalId,
+            imagenesUrls: c.imagenesUrls || []
         })));
     } catch (error) { res.json([]); }
 });
@@ -329,6 +330,42 @@ app.delete('/api/consultas/:id', async (req, res) => {
         await prisma.consulta.delete({ where: { id: parseInt(req.params.id) } });
         res.json({ ok: true });
     } catch (error) { res.status(500).json({error: "Error al borrar consulta"}); }
+});
+
+// --- FOTOS DE CONSULTAS (S3) ---
+app.post('/api/consultas/:id/imagenes', upload.array('imagenes', 10), async (req, res) => {
+  if (!req.files || req.files.length === 0) return res.status(400).json({ error: 'No se recibieron archivos.' });
+
+  const consultaId = parseInt(req.params.id);
+  try {
+    // Subir cada archivo al bucket
+    const urls = await Promise.all(req.files.map(async (file) => {
+      const ext = file.originalname.split('.').pop().toLowerCase();
+      const key = `consultas/${consultaId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+      await s3.send(new PutObjectCommand({
+        Bucket: process.env.S3_BUCKET,
+        Key: key,
+        Body: file.buffer,
+        ContentType: file.mimetype,
+      }));
+      return `${process.env.S3_ENDPOINT}/${process.env.S3_BUCKET}/${key}`;
+    }));
+
+    // Recuperar las URLs ya existentes y sumar las nuevas
+    const consulta = await prisma.consulta.findUnique({ where: { id: consultaId } });
+    const existentes = Array.isArray(consulta?.imagenesUrls) ? consulta.imagenesUrls : [];
+    const todasLasUrls = [...existentes, ...urls];
+
+    await prisma.consulta.update({
+      where: { id: consultaId },
+      data: { imagenesUrls: todasLasUrls },
+    });
+
+    res.json({ imagenesUrls: todasLasUrls });
+  } catch (error) {
+    console.error('Error subiendo imágenes de consulta:', error);
+    res.status(500).json({ error: 'Error al subir las imágenes.' });
+  }
 });
 
 // --- FOTOS DE PACIENTES (S3) ---

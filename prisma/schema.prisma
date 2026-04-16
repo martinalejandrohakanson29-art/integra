@@ -79,6 +79,7 @@ model Consulta {
   tratamiento    String
   notas          String?
   odontogramaData Json?
+  imagenesUrls   Json?
   costo          Decimal?    @db.Decimal(10, 2)
   
   pacienteId     Int

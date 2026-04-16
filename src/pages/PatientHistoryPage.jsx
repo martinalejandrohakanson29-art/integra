@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import MainLayout from '../components/MainLayout';
 import Odontograma from '../components/Odontograma';
-import { Calendar, Phone, Activity, ArrowLeft, FileText, X, Plus, Clock, Eye, Trash2, Edit3, Check, Stethoscope } from 'lucide-react';
+import { Calendar, Phone, Activity, ArrowLeft, FileText, X, Plus, Clock, Eye, Trash2, Edit3, Check, Stethoscope, ImagePlus, ZoomIn } from 'lucide-react';
 import { format } from 'date-fns';
-import { es } from 'date-fns/locale'; // Corregido: Ahora Vite lo encontrará correctamente
+import { es } from 'date-fns/locale';
 
 const PatientHistoryPage = () => {
     const { id } = useParams();
@@ -17,13 +17,18 @@ const PatientHistoryPage = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [modalMode, setModalMode] = useState('create'); 
     const [saving, setSaving] = useState(false);
+    const [uploadingImages, setUploadingImages] = useState(false);
+    const [imagenesPreview, setImagenesPreview] = useState([]); // { file, previewUrl }
+    const [lightboxUrl, setLightboxUrl] = useState(null);
+    const fileInputRef = useRef(null);
     
     const [currentEntry, setCurrentEntry] = useState({
         id: null,
         fecha: new Date().toISOString().split('T')[0],
         observaciones: '',
         odontograma: {},
-        profesionalId: ''
+        profesionalId: '',
+        imagenesUrls: []
     });
 
     const loadData = async () => {
@@ -61,14 +66,15 @@ const PatientHistoryPage = () => {
         const user = JSON.parse(localStorage.getItem('user'));
         setModalMode('create');
         const ultimoOdontograma = consultas.length > 0 ? consultas[0].odontograma : {};
-        
         setCurrentEntry({
             id: null,
             fecha: new Date().toISOString().split('T')[0],
             observaciones: '',
             odontograma: ultimoOdontograma || {},
-            profesionalId: user?.id || '' 
+            profesionalId: user?.id || '',
+            imagenesUrls: []
         });
+        setImagenesPreview([]);
         setIsModalOpen(true);
     };
 
@@ -79,8 +85,10 @@ const PatientHistoryPage = () => {
             fecha: consulta.fecha ? consulta.fecha.split('T')[0] : new Date().toISOString().split('T')[0],
             observaciones: consulta.observaciones || '',
             odontograma: consulta.odontograma || {},
-            profesionalId: consulta.profesionalId || ''
+            profesionalId: consulta.profesionalId || '',
+            imagenesUrls: consulta.imagenesUrls || []
         });
+        setImagenesPreview([]);
         setIsModalOpen(true);
     };
 
@@ -89,6 +97,34 @@ const PatientHistoryPage = () => {
         if (window.confirm("¿Estás seguro de eliminar esta entrada?")) {
             await fetch(`/api/consultas/${consultaId}`, { method: 'DELETE' });
             loadData();
+        }
+    };
+
+    const handleImagenesChange = (e) => {
+        const files = Array.from(e.target.files);
+        const nuevas = files.map(file => ({ file, previewUrl: URL.createObjectURL(file) }));
+        setImagenesPreview(prev => [...prev, ...nuevas]);
+        e.target.value = '';
+    };
+
+    const handleRemovePreview = (index) => {
+        setImagenesPreview(prev => {
+            URL.revokeObjectURL(prev[index].previewUrl);
+            return prev.filter((_, i) => i !== index);
+        });
+    };
+
+    const uploadImagenes = async (consultaId) => {
+        if (imagenesPreview.length === 0) return;
+        setUploadingImages(true);
+        try {
+            const formData = new FormData();
+            imagenesPreview.forEach(({ file }) => formData.append('imagenes', file));
+            await fetch(`/api/consultas/${consultaId}/imagenes`, { method: 'POST', body: formData });
+        } catch (err) {
+            console.error('Error subiendo imágenes:', err);
+        } finally {
+            setUploadingImages(false);
         }
     };
 
@@ -113,7 +149,11 @@ const PatientHistoryPage = () => {
             });
 
             if (res.ok) {
+                const consultaGuardada = await res.json();
+                // Subir imágenes si las hay
+                await uploadImagenes(consultaGuardada.id || currentEntry.id);
                 setIsModalOpen(false);
+                setImagenesPreview([]);
                 loadData();
             }
         } catch (error) {
@@ -137,6 +177,7 @@ const PatientHistoryPage = () => {
     );
 
     return (
+        <>
         <MainLayout title={patient.nombre + " " + (patient.apellido || "")} activePage="historia">
             <div className="h-full overflow-y-auto pr-2 custom-scrollbar">
                 <div className="max-w-6xl mx-auto space-y-6 pb-20">
@@ -270,6 +311,71 @@ const PatientHistoryPage = () => {
                                     <Odontograma data={currentEntry.odontograma} onChange={(nuevaData) => { if (modalMode !== 'view') setCurrentEntry({...currentEntry, odontograma: nuevaData}) }} />
                                 </div>
                             </div>
+
+                            {/* SECCIÓN IMÁGENES */}
+                            <div className="space-y-3">
+                                <div className="flex items-center justify-between">
+                                    <label className="text-xs font-black text-slate-400 uppercase tracking-tighter">Imágenes adjuntas</label>
+                                    {modalMode !== 'view' && (
+                                        <button
+                                            type="button"
+                                            onClick={() => fileInputRef.current?.click()}
+                                            className="flex items-center gap-2 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 px-4 py-2 rounded-xl text-xs font-bold hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-all border border-indigo-200 dark:border-indigo-800"
+                                        >
+                                            <ImagePlus className="w-4 h-4" />
+                                            Cargar imagen
+                                        </button>
+                                    )}
+                                    <input
+                                        ref={fileInputRef}
+                                        type="file"
+                                        accept="image/*"
+                                        multiple
+                                        className="hidden"
+                                        onChange={handleImagenesChange}
+                                    />
+                                </div>
+
+                                {/* Previews de las imágenes a subir */}
+                                {imagenesPreview.length > 0 && (
+                                    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3">
+                                        {imagenesPreview.map((img, i) => (
+                                            <div key={i} className="relative group rounded-xl overflow-hidden border-2 border-indigo-300 dark:border-indigo-700 aspect-square">
+                                                <img src={img.previewUrl} alt="preview" className="w-full h-full object-cover" />
+                                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                                    <button onClick={() => handleRemovePreview(i)} className="p-1.5 bg-rose-500 rounded-full text-white">
+                                                        <X className="w-3.5 h-3.5" />
+                                                    </button>
+                                                </div>
+                                                <div className="absolute bottom-1 left-1 bg-indigo-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded">NUEVA</div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+
+                                {/* Imágenes ya guardadas en la consulta */}
+                                {currentEntry.imagenesUrls?.length > 0 && (
+                                    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3">
+                                        {currentEntry.imagenesUrls.map((url, i) => (
+                                            <button
+                                                key={i}
+                                                type="button"
+                                                onClick={() => setLightboxUrl(url)}
+                                                className="relative group rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 aspect-square hover:border-indigo-400 transition-all"
+                                            >
+                                                <img src={url} alt={`imagen-${i}`} className="w-full h-full object-cover" />
+                                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                                    <ZoomIn className="w-5 h-5 text-white" />
+                                                </div>
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+
+                                {imagenesPreview.length === 0 && (!currentEntry.imagenesUrls || currentEntry.imagenesUrls.length === 0) && (
+                                    <p className="text-xs text-slate-400 italic">No hay imágenes adjuntas.</p>
+                                )}
+                            </div>
                         </div>
 
                         <div className="p-6 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex justify-end gap-4">
@@ -284,6 +390,25 @@ const PatientHistoryPage = () => {
                 </div>
             )}
         </MainLayout>
+
+        {/* LIGHTBOX */}
+        {lightboxUrl && (
+            <div
+                className="fixed inset-0 z-[200] flex items-center justify-center bg-black/90 backdrop-blur-md p-4"
+                onClick={() => setLightboxUrl(null)}
+            >
+                <button className="absolute top-4 right-4 p-2 bg-white/10 hover:bg-white/20 rounded-full transition-all" onClick={() => setLightboxUrl(null)}>
+                    <X className="w-6 h-6 text-white" />
+                </button>
+                <img
+                    src={lightboxUrl}
+                    alt="ampliada"
+                    className="max-h-[90vh] max-w-[95vw] rounded-2xl shadow-2xl object-contain"
+                    onClick={e => e.stopPropagation()}
+                />
+            </div>
+        )}
+        </>
     );
 };
 
