@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import MainLayout from '../components/MainLayout';
 import Odontograma from '../components/Odontograma';
-import { Calendar, Phone, Activity, ArrowLeft, FileText, X, Plus, Clock, Eye, Trash2, Edit3, Check, UserMd } from 'lucide-react';
+import { Calendar, Phone, Activity, ArrowLeft, FileText, X, Plus, Clock, Eye, Trash2, Edit3, Check, Stethoscope } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale'; // Corregido: Ahora Vite lo encontrará correctamente
 

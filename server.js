@@ -4,10 +4,24 @@ import { PrismaClient } from '@prisma/client';
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import multer from 'multer';
+import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 
 dotenv.config();
 
 const prisma = new PrismaClient();
+
+// --- CLIENTE S3 (Railway / Tigris) ---
+const s3 = new S3Client({
+  region: process.env.S3_REGION || 'auto',
+  endpoint: process.env.S3_ENDPOINT,
+  credentials: {
+    accessKeyId: process.env.S3_ACCESS_KEY_ID,
+    secretAccessKey: process.env.S3_SECRET_ACCESS_KEY,
+  },
+});
+
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
 const app = express();
 const port = process.env.PORT || 3001;
 
@@ -315,6 +329,61 @@ app.delete('/api/consultas/:id', async (req, res) => {
         await prisma.consulta.delete({ where: { id: parseInt(req.params.id) } });
         res.json({ ok: true });
     } catch (error) { res.status(500).json({error: "Error al borrar consulta"}); }
+});
+
+// --- FOTOS DE PACIENTES (S3) ---
+app.post('/api/pacientes/:id/foto', upload.single('foto'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'No se recibió ningún archivo.' });
+
+  const pacienteId = parseInt(req.params.id);
+  const ext = req.file.originalname.split('.').pop().toLowerCase();
+  const key = `pacientes/${pacienteId}/foto.${ext}`;
+
+  try {
+    // Subir al bucket
+    await s3.send(new PutObjectCommand({
+      Bucket: process.env.S3_BUCKET,
+      Key: key,
+      Body: req.file.buffer,
+      ContentType: req.file.mimetype,
+    }));
+
+    const fotoUrl = `${process.env.S3_ENDPOINT}/${process.env.S3_BUCKET}/${key}?t=${Date.now()}`;
+
+    // Guardar URL en la DB
+    const paciente = await prisma.paciente.update({
+      where: { id: pacienteId },
+      data: { fotoUrl },
+    });
+
+    res.json({ fotoUrl: paciente.fotoUrl });
+  } catch (error) {
+    console.error('Error subiendo foto:', error);
+    res.status(500).json({ error: 'Error al subir la foto.' });
+  }
+});
+
+app.delete('/api/pacientes/:id/foto', async (req, res) => {
+  const pacienteId = parseInt(req.params.id);
+  try {
+    const paciente = await prisma.paciente.findUnique({ where: { id: pacienteId } });
+    if (!paciente?.fotoUrl) return res.status(404).json({ error: 'No tiene foto.' });
+
+    // Extraer la key del bucket desde la URL
+    const url = new URL(paciente.fotoUrl);
+    const key = url.pathname.replace(`/${process.env.S3_BUCKET}/`, '');
+
+    await s3.send(new DeleteObjectCommand({
+      Bucket: process.env.S3_BUCKET,
+      Key: key,
+    }));
+
+    await prisma.paciente.update({ where: { id: pacienteId }, data: { fotoUrl: null } });
+    res.json({ ok: true });
+  } catch (error) {
+    console.error('Error eliminando foto:', error);
+    res.status(500).json({ error: 'Error al eliminar la foto.' });
+  }
 });
 
 app.use(express.static(path.join(__dirname, 'dist')));

@@ -32,6 +32,7 @@ model Paciente {
   email           String?
   direccion       String?
   colorType       String     @default("default")
+  fotoUrl         String?
   tieneAlergias        Boolean @default(false)
   tieneProbCardiacos   Boolean @default(false)
   tieneHipertension    Boolean @default(false)
