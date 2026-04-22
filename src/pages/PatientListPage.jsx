@@ -89,8 +89,12 @@ const PatientListPage = () => {
                   <tr key={p.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors group">
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-indigo-100 dark:bg-indigo-900/40 flex items-center justify-center text-indigo-600 font-bold text-xs">
-                          {p.nombre.charAt(0)}
+                        <div className="w-8 h-8 rounded-full bg-indigo-100 dark:bg-indigo-900/40 flex items-center justify-center text-indigo-600 font-bold text-xs overflow-hidden">
+                          {p.fotoUrl ? (
+                            <img src={p.fotoUrl} alt={p.nombre} className="w-full h-full object-cover" />
+                          ) : (
+                            p.nombre.charAt(0)
+                          )}
                         </div>
                         <span className="font-semibold text-slate-900 dark:text-white text-sm">{p.nombre}</span>
                       </div>

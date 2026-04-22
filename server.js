@@ -5,7 +5,8 @@ import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import multer from 'multer';
-import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
 dotenv.config();
 
@@ -41,6 +42,25 @@ const formatearTurno = (t) => {
   const hora = `${horas}:${minutos}`;
   const duracion = Math.round((t.fechaHoraFin - t.fechaHoraInicio) / 60000) || 30;
   return { ...t, fecha, hora, duracion };
+};
+
+// --- HELPER PARA URLs FIRMADAS (S3) ---
+const generarUrlFirmada = async (rawUrl) => {
+  if (!rawUrl || typeof rawUrl !== 'string' || !rawUrl.includes(process.env.S3_BUCKET)) return rawUrl;
+  try {
+    const url = new URL(rawUrl);
+    // Limpiamos el pathname para obtener la Key (quitamos el bucket del inicio)
+    const key = url.pathname.replace(`/${process.env.S3_BUCKET}/`, '');
+    const command = new GetObjectCommand({
+      Bucket: process.env.S3_BUCKET,
+      Key: key,
+    });
+    // La URL firmada durará 1 hora
+    return await getSignedUrl(s3, command, { expiresIn: 3600 });
+  } catch (error) {
+    console.error("Error firmando URL:", error);
+    return rawUrl;
+  }
 };
 
 // --- RUTA DE AUTENTICACIÓN ---
@@ -138,7 +158,14 @@ app.delete('/api/profesionales/:id', async (req, res) => {
 app.get('/api/pacientes', async (req, res) => {
   try {
     const pacientes = await prisma.paciente.findMany({ orderBy: { createdAt: 'desc' } });
-    res.json(pacientes || []);
+    
+    // Firmamos las fotos de perfil de todos los pacientes
+    const pacientesFirmados = await Promise.all(pacientes.map(async (p) => ({
+      ...p,
+      fotoUrl: await generarUrlFirmada(p.fotoUrl)
+    })));
+    
+    res.json(pacientesFirmados || []);
   } catch (error) { res.json([]); }
 });
 
@@ -152,6 +179,10 @@ app.get('/api/pacientes/:id', async (req, res) => {
       },
     });
     if (!paciente) return res.status(404).json({ error: 'No encontrado' });
+
+    // Firmamos la foto de perfil del paciente
+    paciente.fotoUrl = await generarUrlFirmada(paciente.fotoUrl);
+
     res.json(paciente);
   } catch (error) { res.status(500).json({ error: 'Error al buscar paciente' }); }
 });
@@ -280,10 +311,23 @@ app.get('/api/pacientes/:id/consultas', async (req, res) => {
             where: { pacienteId: parseInt(req.params.id) },
             orderBy: { fecha: 'desc' }
         });
-        res.json(consultas.map(c => ({
-            ...c, observaciones: c.diagnostico, odontograma: c.odontogramaData, profesionalId: c.profesionalId,
-            imagenesUrls: c.imagenesUrls || []
-        })));
+
+        // Firmamos todas las imágenes de cada consulta
+        const consultasFirmadas = await Promise.all(consultas.map(async (c) => {
+            const urlsFirmadas = Array.isArray(c.imagenesUrls) 
+                ? await Promise.all(c.imagenesUrls.map(url => generarUrlFirmada(url)))
+                : [];
+            
+            return {
+                ...c, 
+                observaciones: c.diagnostico, 
+                odontograma: c.odontogramaData, 
+                profesionalId: c.profesionalId,
+                imagenesUrls: urlsFirmadas
+            };
+        }));
+
+        res.json(consultasFirmadas);
     } catch (error) { res.json([]); }
 });
 
@@ -330,6 +374,55 @@ app.delete('/api/consultas/:id', async (req, res) => {
         await prisma.consulta.delete({ where: { id: parseInt(req.params.id) } });
         res.json({ ok: true });
     } catch (error) { res.status(500).json({error: "Error al borrar consulta"}); }
+});
+
+// --- ELIMINAR IMAGEN ESPECÍFICA DE CONSULTA ---
+app.delete('/api/consultas/:id/imagenes', async (req, res) => {
+  const { url: urlAEliminar } = req.body;
+  const consultaId = parseInt(req.params.id);
+
+  if (!urlAEliminar) return res.status(400).json({ error: 'No se especificó la URL.' });
+
+  try {
+    const consulta = await prisma.consulta.findUnique({ where: { id: consultaId } });
+    if (!consulta) return res.status(404).json({ error: 'Consulta no encontrada.' });
+
+    // 1. Extraer la Key de S3 desde la URL guardada (no la firmada)
+    // Buscamos en el array original de la DB, no en el que viene del body (que puede estar firmado)
+    const existentes = Array.isArray(consulta.imagenesUrls) ? consulta.imagenesUrls : [];
+    
+    // IMPORTANTE: El frontend nos debe enviar la URL base o nosotros debemos identificarla.
+    // Como las URLs firmadas cambian, lo mejor es que el frontend envíe la URL que guardamos originalmente.
+    // Pero si envía la firmada, tenemos que comparar con inteligencia o que envíe el índice.
+    // Para simplificar, buscaremos la URL que coincida con el patrón de la Key.
+    
+    const urlOriginal = existentes.find(u => {
+        const keyExistente = new URL(u).pathname.replace(`/${process.env.S3_BUCKET}/`, '');
+        return urlAEliminar.includes(keyExistente);
+    });
+
+    if (!urlOriginal) return res.status(404).json({ error: 'Imagen no encontrada en el registro.' });
+
+    const key = new URL(urlOriginal).pathname.replace(`/${process.env.S3_BUCKET}/`, '');
+
+    // 2. Eliminar de S3
+    await s3.send(new DeleteObjectCommand({
+      Bucket: process.env.S3_BUCKET,
+      Key: key,
+    }));
+
+    // 3. Actualizar base de datos
+    const nuevasUrls = existentes.filter(u => u !== urlOriginal);
+    await prisma.consulta.update({
+      where: { id: consultaId },
+      data: { imagenesUrls: nuevasUrls },
+    });
+
+    res.json({ ok: true, imagenesUrls: nuevasUrls });
+  } catch (error) {
+    console.error('Error eliminando imagen:', error);
+    res.status(500).json({ error: 'Error al eliminar la imagen.' });
+  }
 });
 
 // --- FOTOS DE CONSULTAS (S3) ---

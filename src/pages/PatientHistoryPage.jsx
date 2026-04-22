@@ -114,6 +114,26 @@ const PatientHistoryPage = () => {
         });
     };
 
+    const handleDeleteImagen = async (url, e) => {
+        e.stopPropagation();
+        if (window.confirm("¿Estás seguro de eliminar esta imagen permanentemente?")) {
+            try {
+                const res = await fetch(`/api/consultas/${currentEntry.id}/imagenes`, {
+                    method: 'DELETE',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url })
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    setCurrentEntry(prev => ({ ...prev, imagenesUrls: data.imagenesUrls }));
+                    loadData();
+                }
+            } catch (err) {
+                alert("Error al eliminar la imagen.");
+            }
+        }
+    };
+
     const uploadImagenes = async (consultaId) => {
         if (imagenesPreview.length === 0) return;
         setUploadingImages(true);
@@ -188,8 +208,12 @@ const PatientHistoryPage = () => {
 
                     <div className="bg-white dark:bg-slate-900 rounded-3xl p-8 shadow-sm border border-slate-200 dark:border-slate-800">
                         <div className="flex flex-col md:flex-row gap-8 items-start">
-                            <div className="w-24 h-24 rounded-2xl bg-[#517A91] flex items-center justify-center text-white text-4xl font-black shadow-xl">
-                                {patient.nombre.charAt(0)}
+                            <div className="w-24 h-24 rounded-2xl bg-[#517A91] flex items-center justify-center text-white text-4xl font-black shadow-xl overflow-hidden">
+                                {patient.fotoUrl ? (
+                                    <img src={patient.fotoUrl} alt={patient.nombre} className="w-full h-full object-cover" />
+                                ) : (
+                                    patient.nombre.charAt(0)
+                                )}
                             </div>
                             <div className="flex-1 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                                 <div>
@@ -237,7 +261,7 @@ const PatientHistoryPage = () => {
                                             </span>
                                         </div>
                                         <div className="flex items-center gap-2">
-                                            <button onClick={(e) => handleDeleteConsulta(c.id, e)} className="p-2 text-slate-300 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/30 rounded-lg transition-all opacity-0 group-hover:opacity-100">
+                                            <button onClick={(e) => handleDeleteConsulta(c.id, e)} className="p-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/30 rounded-lg transition-all">
                                                 <Trash2 className="w-4 h-4" />
                                             </button>
                                             <div className="text-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 text-xs font-bold uppercase tracking-wider">
@@ -357,17 +381,26 @@ const PatientHistoryPage = () => {
                                 {currentEntry.imagenesUrls?.length > 0 && (
                                     <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3">
                                         {currentEntry.imagenesUrls.map((url, i) => (
-                                            <button
-                                                key={i}
-                                                type="button"
-                                                onClick={() => setLightboxUrl(url)}
-                                                className="relative group rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 aspect-square hover:border-indigo-400 transition-all"
-                                            >
-                                                <img src={url} alt={`imagen-${i}`} className="w-full h-full object-cover" />
-                                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                                    <ZoomIn className="w-5 h-5 text-white" />
-                                                </div>
-                                            </button>
+                                            <div key={i} className="relative group aspect-square">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setLightboxUrl(url)}
+                                                    className="w-full h-full rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 hover:border-indigo-400 transition-all"
+                                                >
+                                                    <img src={url} alt={`imagen-${i}`} className="w-full h-full object-cover" />
+                                                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                                        <ZoomIn className="w-5 h-5 text-white" />
+                                                    </div>
+                                                </button>
+                                                {modalMode !== 'view' && (
+                                                    <button 
+                                                        onClick={(e) => handleDeleteImagen(url, e)}
+                                                        className="absolute -top-2 -right-2 p-1.5 bg-rose-500 text-white rounded-full shadow-lg z-10 hover:bg-rose-600 transition-colors"
+                                                    >
+                                                        <X className="w-3 h-3" />
+                                                    </button>
+                                                )}
+                                            </div>
                                         ))}
                                     </div>
                                 )}
