@@ -43,17 +43,18 @@ const PatientListPage = () => {
   };
 
   // Protección: si patients no es lista, filteredPatients será lista vacía
-  const filteredPatients = Array.isArray(patients) ? patients.filter(p => 
-    p.nombre.toLowerCase().includes(searchTerm.toLowerCase()) || p.dni.includes(searchTerm)
+  const filteredPatients = Array.isArray(patients) ? patients.filter(p =>
+    `${p.nombre} ${p.apellido || ''}`.toLowerCase().includes(searchTerm.toLowerCase()) || p.dni.includes(searchTerm)
   ) : [];
 
   const headerActions = (
-    <button 
-      onClick={() => navigate('/nuevo-paciente')} 
-      className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 shadow-md transition-all text-sm font-bold"
+    <button
+      onClick={() => navigate('/nuevo-paciente')}
+      className="flex items-center gap-2 bg-indigo-600 text-white px-3 md:px-4 py-2 rounded-lg hover:bg-indigo-700 shadow-md transition-all text-sm font-bold"
     >
       <UserPlus className="w-4 h-4" />
-      <span>Nuevo Paciente</span>
+      <span className="hidden sm:inline">Nuevo Paciente</span>
+      <span className="sm:hidden">Nuevo</span>
     </button>
   );
 
@@ -72,8 +73,8 @@ const PatientListPage = () => {
         </div>
 
         <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden flex-1 flex flex-col">
-          <div className="overflow-auto custom-scrollbar">
-            <table className="w-full text-left border-collapse">
+          <div className="overflow-auto custom-scrollbar flex-1">
+            <table className="w-full min-w-[640px] text-left border-collapse">
               <thead>
                 <tr className="bg-slate-50 dark:bg-slate-800/50 sticky top-0">
                   <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Paciente</th>
@@ -96,7 +97,7 @@ const PatientListPage = () => {
                             p.nombre.charAt(0)
                           )}
                         </div>
-                        <span className="font-semibold text-slate-900 dark:text-white text-sm">{p.nombre}</span>
+                        <span className="font-semibold text-slate-900 dark:text-white text-sm">{p.nombre} {p.apellido || ''}</span>
                       </div>
                     </td>
                     <td className="px-6 py-4 text-slate-500 text-sm font-mono">{p.dni}</td>
@@ -107,7 +108,8 @@ const PatientListPage = () => {
                         </div>
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      {/* En táctil no existe hover: las acciones quedan siempre visibles en pantallas chicas */}
+                      <div className="flex justify-end gap-1 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
                         <button onClick={() => navigate(`/pacientes/${p.id}/historia`)} className="p-2 text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-lg" title="Historia Clínica">
                           <FileText className="w-4 h-4" />
                         </button>

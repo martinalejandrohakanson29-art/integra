@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 const LoginPage = () => {
@@ -6,21 +6,35 @@ const LoginPage = () => {
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
+    const [loading, setLoading] = useState(false);
+
+    // Si ya hay sesión activa, ir directo a la agenda
+    useEffect(() => {
+        if (localStorage.getItem('user')) navigate('/agenda', { replace: true });
+    }, [navigate]);
 
     const handleLogin = async (e) => {
         e.preventDefault();
-        const res = await fetch('/api/auth/login', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username, password })
-        });
+        setError('');
+        setLoading(true);
+        try {
+            const res = await fetch('/api/auth/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password })
+            });
 
-        if (res.ok) {
-            const user = await res.json();
-            localStorage.setItem('user', JSON.stringify(user));
-            navigate('/agenda');
-        } else {
-            setError('Usuario o contraseña incorrectos');
+            if (res.ok) {
+                const user = await res.json();
+                localStorage.setItem('user', JSON.stringify(user));
+                navigate('/agenda');
+            } else {
+                setError('Usuario o contraseña incorrectos');
+            }
+        } catch {
+            setError('No se pudo conectar con el servidor. Intenta nuevamente.');
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -44,8 +58,8 @@ const LoginPage = () => {
                             <input className="block w-full px-4 py-3 bg-gray-100 dark:bg-slate-800 rounded-xl outline-none" 
                                 type="password" value={password} onChange={e => setPassword(e.target.value)} required />
                         </div>
-                        <button type="submit" className="w-full py-3.5 rounded-xl text-white bg-[#4e7c91] font-bold shadow-lg">
-                            Ingresar
+                        <button type="submit" disabled={loading} className="w-full py-3.5 rounded-xl text-white bg-[#4e7c91] font-bold shadow-lg disabled:opacity-60">
+                            {loading ? 'Ingresando...' : 'Ingresar'}
                         </button>
                     </form>
                 </div>

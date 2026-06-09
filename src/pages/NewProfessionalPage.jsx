@@ -40,7 +40,7 @@ const NewProfessionalPage = () => {
         {error && <div className="mb-6 bg-rose-50 p-4 border-l-4 border-rose-500 text-rose-700 flex items-center gap-2"><AlertCircle className="w-5 h-5"/>{error}</div>}
         
         <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="bg-white dark:bg-slate-900 shadow-sm rounded-3xl border border-slate-200 p-8">
+            <div className="bg-white dark:bg-slate-900 shadow-sm rounded-3xl border border-slate-200 dark:border-slate-800 p-5 md:p-8">
                 <h2 className="text-lg font-bold flex items-center gap-2 mb-6 text-indigo-600"><Briefcase className="w-5 h-5"/> Datos de Perfil y Acceso</h2>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -82,9 +82,9 @@ const NewProfessionalPage = () => {
                 </div>
             </div>
 
-            <div className="flex justify-end gap-4">
+            <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 sm:gap-4">
                 <button type="button" onClick={() => navigate('/profesionales')} className="px-6 py-3 font-bold text-slate-500">Cancelar</button>
-                <button type="submit" disabled={loading} className="px-10 py-3 bg-indigo-600 text-white rounded-2xl font-black shadow-xl hover:bg-indigo-700">
+                <button type="submit" disabled={loading} className="px-6 sm:px-10 py-3 bg-indigo-600 text-white rounded-2xl font-black shadow-xl hover:bg-indigo-700 disabled:opacity-50 flex items-center justify-center">
                     {loading ? 'Guardando...' : <span className="flex items-center gap-2"><Save className="w-5 h-5"/> Guardar Profesional</span>}
                 </button>
             </div>

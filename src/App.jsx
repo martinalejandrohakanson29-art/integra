@@ -7,7 +7,6 @@ import NewPatientPage from './pages/NewPatientPage';
 import EditPatientPage from './pages/EditPatientPage';
 import PatientHistoryListPage from './pages/PatientHistoryListPage';
 import PatientHistoryPage from './pages/PatientHistoryPage';
-import EditAppointmentPage from './pages/EditAppointmentPage';
 
 // NUEVAS PÁGINAS DE PROFESIONALES
 import ProfessionalListPage from './pages/ProfessionalListPage';
@@ -27,7 +26,6 @@ function App() {
         
         <Route path="/historia-clinica" element={<PatientHistoryListPage />} />
         <Route path="/pacientes/:id/historia" element={<PatientHistoryPage />} />
-        <Route path="/editar-turno" element={<EditAppointmentPage />} />
 
         {/* RUTAS DE PROFESIONALES */}
         <Route path="/profesionales" element={<ProfessionalListPage />} />

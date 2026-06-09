@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:server": "node server.js",
     "build": "prisma generate && prisma db push && vite build",
     "start": "node server.js",
     "lint": "eslint ."

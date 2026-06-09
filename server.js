@@ -157,7 +157,17 @@ app.delete('/api/profesionales/:id', async (req, res) => {
 // --- PACIENTES ---
 app.get('/api/pacientes', async (req, res) => {
   try {
-    const pacientes = await prisma.paciente.findMany({ orderBy: { createdAt: 'desc' } });
+    const pacientes = await prisma.paciente.findMany({
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true, nombre: true, apellido: true, dni: true, fechaNacimiento: true,
+        telefono: true, email: true, direccion: true, colorType: true, fotoUrl: true,
+        obraSocial: true, tieneAlergias: true, tieneProbCardiacos: true,
+        tieneHipertension: true, tieneDiabetes: true, tomaMedicacion: true,
+        estaEmbarazada: true, otrosAntecedentes: true, observacionesAnamnesis: true,
+        createdAt: true, updatedAt: true
+      }
+    });
     
     // Firmamos las fotos de perfil de todos los pacientes
     const pacientesFirmados = await Promise.all(pacientes.map(async (p) => ({
@@ -200,7 +210,8 @@ app.post('/api/pacientes', async (req, res) => {
 
 app.patch('/api/pacientes/:id', async (req, res) => {
   try {
-    const { id, consultas, turnos, createdAt, updatedAt, fechaNacimiento, ...datosParaActualizar } = req.body;
+    // fotoUrl se excluye: el cliente recibe una URL firmada temporal que no debe pisar la original (se gestiona vía /api/pacientes/:id/foto)
+    const { id, consultas, turnos, createdAt, updatedAt, fechaNacimiento, fotoUrl, ...datosParaActualizar } = req.body;
     const actualizado = await prisma.paciente.update({
       where: { id: parseInt(req.params.id) },
       data: { ...datosParaActualizar, fechaNacimiento: fechaNacimiento ? new Date(fechaNacimiento) : undefined }
@@ -276,12 +287,16 @@ app.patch('/api/turnos/:id', async (req, res) => {
         const turnoExistente = await prisma.turno.findUnique({ where: { id: parseInt(req.params.id) } });
         if (!turnoExistente) return res.status(404).json({ error: "Turno no encontrado" });
 
+        // La duración nunca puede bajar de 30 minutos (un slot)
+        const duracionValida = duracion ? Math.max(30, parseInt(duracion)) : null;
+
         let data = {};
         if (fecha && hora) {
             data.fechaHoraInicio = new Date(`${fecha}T${hora}:00`);
-            data.fechaHoraFin = new Date(data.fechaHoraInicio.getTime() + (duracion || 30) * 60000);
-        } else if (duracion) {
-            data.fechaHoraFin = new Date(turnoExistente.fechaHoraInicio.getTime() + duracion * 60000);
+            const durActual = Math.round((turnoExistente.fechaHoraFin - turnoExistente.fechaHoraInicio) / 60000) || 30;
+            data.fechaHoraFin = new Date(data.fechaHoraInicio.getTime() + (duracionValida || durActual) * 60000);
+        } else if (duracionValida) {
+            data.fechaHoraFin = new Date(turnoExistente.fechaHoraInicio.getTime() + duracionValida * 60000);
         }
         if (estado) data.estado = estado;
         
@@ -314,16 +329,17 @@ app.get('/api/pacientes/:id/consultas', async (req, res) => {
 
         // Firmamos todas las imágenes de cada consulta
         const consultasFirmadas = await Promise.all(consultas.map(async (c) => {
-            const urlsFirmadas = Array.isArray(c.imagenesUrls) 
+            const urlsFirmadas = Array.isArray(c.imagenesUrls)
                 ? await Promise.all(c.imagenesUrls.map(url => generarUrlFirmada(url)))
                 : [];
-            
+
             return {
-                ...c, 
-                observaciones: c.diagnostico, 
-                odontograma: c.odontogramaData, 
+                ...c,
+                observaciones: c.diagnostico,
+                odontograma: c.odontogramaData,
                 profesionalId: c.profesionalId,
-                imagenesUrls: urlsFirmadas
+                imagenesUrls: urlsFirmadas,
+                firmaDigital: c.firmaDigital || null
             };
         }));
 
@@ -332,7 +348,7 @@ app.get('/api/pacientes/:id/consultas', async (req, res) => {
 });
 
 app.post('/api/pacientes/:id/consultas', async (req, res) => {
-    const { observaciones, odontograma, fecha, profesionalId } = req.body;
+    const { observaciones, odontograma, fecha, profesionalId, firmaDigital } = req.body;
     try {
         let pId = parseInt(profesionalId);
         const profCheck = pId ? await prisma.profesional.findUnique({ where: { id: pId } }) : null;
@@ -347,7 +363,8 @@ app.post('/api/pacientes/:id/consultas', async (req, res) => {
             data: {
                 pacienteId: parseInt(req.params.id), profesionalId: pId,
                 fecha: new Date(fecha), diagnostico: observaciones || "",
-                tratamiento: "Consulta General", odontogramaData: odontograma || {}
+                tratamiento: "Consulta General", odontogramaData: odontograma || {},
+                firmaDigital: firmaDigital || null
             }
         });
         res.json(nueva);
@@ -355,14 +372,15 @@ app.post('/api/pacientes/:id/consultas', async (req, res) => {
 });
 
 app.patch('/api/consultas/:id', async (req, res) => {
-    const { observaciones, odontograma, fecha, profesionalId } = req.body;
+    const { observaciones, odontograma, fecha, profesionalId, firmaDigital } = req.body;
     try {
         const act = await prisma.consulta.update({
             where: { id: parseInt(req.params.id) },
             data: {
                 fecha: fecha ? new Date(fecha) : undefined,
                 diagnostico: observaciones, odontogramaData: odontograma,
-                profesionalId: profesionalId ? parseInt(profesionalId) : undefined
+                profesionalId: profesionalId ? parseInt(profesionalId) : undefined,
+                ...(firmaDigital !== undefined && { firmaDigital: firmaDigital || null })
             }
         });
         res.json(act);

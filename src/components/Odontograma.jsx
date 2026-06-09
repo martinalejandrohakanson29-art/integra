@@ -39,7 +39,7 @@ const Odontograma = ({ data = {}, onChange }) => {
   );
 
   return (
-    <div className="bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-x-auto flex flex-col gap-6">
+    <div className="bg-white dark:bg-slate-900 p-3 md:p-6 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-x-auto flex flex-col gap-4 md:gap-6">
       
       {/* BARRA DE HERRAMIENTAS */}
       <div className="flex flex-wrap items-center gap-2 bg-slate-50 dark:bg-slate-800/50 p-2 rounded-lg border border-slate-100 dark:border-slate-800 self-start">
@@ -65,6 +65,11 @@ const Odontograma = ({ data = {}, onChange }) => {
         {/* Herramienta: Cruz Roja */}
         <button type="button" onClick={() => setHerramienta('x-red')} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${herramienta === 'x-red' ? 'bg-rose-100 dark:bg-rose-900/40 text-rose-700 dark:text-rose-300 ring-2 ring-rose-500 border-transparent' : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700'}`}>
             <X className="w-3.5 h-3.5 text-rose-500 stroke-[3px]" /> Marca Roja
+        </button>
+
+        {/* Herramienta: Círculo */}
+        <button type="button" onClick={() => setHerramienta('circle')} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${herramienta === 'circle' ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 ring-2 ring-emerald-500 border-transparent' : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700'}`}>
+            <div className="w-3.5 h-3.5 rounded-full border-2 border-emerald-500"></div> Círculo
         </button>
 
         <div className="w-px h-6 bg-slate-300 dark:bg-slate-600 mx-1"></div>

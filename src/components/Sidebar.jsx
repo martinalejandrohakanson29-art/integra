@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Calendar, Users, FileText, Briefcase } from 'lucide-react'; 
+import { Calendar, Users, FileText, Briefcase, X } from 'lucide-react';
 
 const Sidebar = ({ activePage, isOpen, onClose }) => {
     const navigate = useNavigate();
@@ -17,25 +17,32 @@ const Sidebar = ({ activePage, isOpen, onClose }) => {
             
             <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-[#517A91] dark:bg-slate-900 text-white transform transition-transform duration-300 md:relative md:translate-x-0 ${isOpen ? 'translate-x-0' : '-translate-x-full'} flex flex-col shadow-xl overflow-hidden`}>
                 
-                <div className="h-24 flex flex-col items-center justify-center border-b border-white/10 px-6 shrink-0">
+                <div className="h-24 flex flex-col items-center justify-center border-b border-white/10 px-6 shrink-0 relative">
                     <h1 className="font-display text-3xl font-bold text-white lowercase tracking-tight">integra</h1>
                     <span className="text-[10px] tracking-wider opacity-70 italic whitespace-nowrap">Gestión Clínica</span>
+                    <button
+                        onClick={onClose}
+                        className="md:hidden absolute top-3 right-3 p-2 text-white/70 hover:text-white hover:bg-white/10 rounded-lg"
+                        aria-label="Cerrar menú"
+                    >
+                        <X className="w-5 h-5" />
+                    </button>
                 </div>
 
                 <nav className="flex-1 py-6 px-3 space-y-1 overflow-y-auto overflow-x-hidden custom-scrollbar">
-                    <Link to="/agenda" className={`flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl transition-colors ${activePage === 'agenda' ? 'bg-white/20' : 'hover:bg-white/10'}`}>
+                    <Link onClick={onClose} to="/agenda" className={`flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl transition-colors ${activePage === 'agenda' ? 'bg-white/20' : 'hover:bg-white/10'}`}>
                         <Calendar className="w-5 h-5 shrink-0" />
                         <span className="truncate">Agenda</span>
                     </Link>
-                    <Link to="/pacientes" className={`flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl transition-colors ${activePage === 'pacientes' ? 'bg-white/20' : 'hover:bg-white/10'}`}>
+                    <Link onClick={onClose} to="/pacientes" className={`flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl transition-colors ${activePage === 'pacientes' ? 'bg-white/20' : 'hover:bg-white/10'}`}>
                         <Users className="w-5 h-5 shrink-0" />
                         <span className="truncate">Pacientes</span>
                     </Link>
-                    <Link to="/historia-clinica" className={`flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl transition-colors ${activePage === 'historia' ? 'bg-white/20' : 'hover:bg-white/10'}`}>
+                    <Link onClick={onClose} to="/historia-clinica" className={`flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl transition-colors ${activePage === 'historia' ? 'bg-white/20' : 'hover:bg-white/10'}`}>
                         <FileText className="w-5 h-5 shrink-0" />
                         <span className="truncate">Historias Clínicas</span>
                     </Link>
-                    <Link to="/profesionales" className={`flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl transition-colors ${activePage === 'profesionales' ? 'bg-white/20' : 'hover:bg-white/10'}`}>
+                    <Link onClick={onClose} to="/profesionales" className={`flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl transition-colors ${activePage === 'profesionales' ? 'bg-white/20' : 'hover:bg-white/10'}`}>
                         <Briefcase className="w-5 h-5 shrink-0" />
                         <span className="truncate">Profesionales</span>
                     </Link>

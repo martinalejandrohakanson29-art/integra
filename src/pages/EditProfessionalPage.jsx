@@ -44,21 +44,21 @@ const EditProfessionalPage = () => {
     <MainLayout title="Editar Profesional" activePage="profesionales">
       <div className="max-w-3xl mx-auto h-full overflow-y-auto pr-2 pb-10 custom-scrollbar">
         <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="bg-white dark:bg-slate-900 shadow-sm rounded-3xl border border-slate-200 p-8">
+            <div className="bg-white dark:bg-slate-900 shadow-sm rounded-3xl border border-slate-200 dark:border-slate-800 p-5 md:p-8">
                 <h2 className="text-lg font-bold flex items-center gap-2 mb-6 text-indigo-600"><Briefcase className="w-5 h-5"/> Editar Perfil y Acceso</h2>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                         <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Nombre *</label>
-                        <input name="nombre" value={formData.nombre} onChange={handleChange} required className="w-full p-3 bg-slate-50 border rounded-xl" />
+                        <input name="nombre" value={formData.nombre} onChange={handleChange} required className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 dark:text-white" />
                     </div>
                     <div>
                         <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Apellido *</label>
-                        <input name="apellido" value={formData.apellido} onChange={handleChange} required className="w-full p-3 bg-slate-50 border rounded-xl" />
+                        <input name="apellido" value={formData.apellido} onChange={handleChange} required className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 dark:text-white" />
                     </div>
                     <div>
                         <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Email (Usuario)</label>
-                        <input type="email" name="email" value={formData.email} onChange={handleChange} required className="w-full p-3 bg-slate-50 border rounded-xl" />
+                        <input type="email" name="email" value={formData.email} onChange={handleChange} required className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 dark:text-white" />
                     </div>
                     <div>
                         <label className="block text-xs font-bold text-rose-500 uppercase mb-1">Nueva Contraseña</label>
@@ -67,11 +67,11 @@ const EditProfessionalPage = () => {
                     </div>
                     <div>
                         <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Especialidad</label>
-                        <input name="especialidad" value={formData.especialidad || ''} onChange={handleChange} className="w-full p-3 bg-slate-50 border rounded-xl" />
+                        <input name="especialidad" value={formData.especialidad || ''} onChange={handleChange} className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 dark:text-white" />
                     </div>
                     <div>
                         <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Teléfono</label>
-                        <input name="telefono" value={formData.telefono || ''} onChange={handleChange} className="w-full p-3 bg-slate-50 border rounded-xl" />
+                        <input name="telefono" value={formData.telefono || ''} onChange={handleChange} className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 dark:text-white" />
                     </div>
                 </div>
 
@@ -87,9 +87,9 @@ const EditProfessionalPage = () => {
                 </div>
             </div>
 
-            <div className="flex justify-end gap-4">
+            <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 sm:gap-4">
                 <button type="button" onClick={() => navigate('/profesionales')} className="px-6 py-3 font-bold text-slate-500">Cancelar</button>
-                <button type="submit" disabled={saving} className="px-10 py-3 bg-amber-500 text-white rounded-2xl font-black shadow-xl hover:bg-amber-600">
+                <button type="submit" disabled={saving} className="px-6 sm:px-10 py-3 bg-amber-500 text-white rounded-2xl font-black shadow-xl hover:bg-amber-600 disabled:opacity-50 flex items-center justify-center">
                     {saving ? 'Guardando...' : 'Guardar Cambios'}
                 </button>
             </div>

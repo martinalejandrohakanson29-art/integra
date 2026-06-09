@@ -2,9 +2,14 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import MainLayout from '../components/MainLayout';
 import Odontograma from '../components/Odontograma';
-import { Calendar, Phone, Activity, ArrowLeft, FileText, X, Plus, Clock, Eye, Trash2, Edit3, Check, Stethoscope, ImagePlus, ZoomIn } from 'lucide-react';
+import SignatureCanvas from '../components/SignatureCanvas';
+import { Calendar, Phone, Activity, ArrowLeft, FileText, X, Plus, Clock, Eye, Trash2, Edit3, Check, Stethoscope, ImagePlus, ZoomIn, PenLine } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+
+// Las fechas vienen como ISO UTC ("2026-06-09T00:00:00.000Z"): si se parsean directo,
+// en husos horarios negativos se muestra el día anterior. Usamos solo la parte de fecha.
+const fechaLocal = (iso) => new Date(`${String(iso).split('T')[0]}T00:00:00`);
 
 const PatientHistoryPage = () => {
     const { id } = useParams();
@@ -15,20 +20,22 @@ const PatientHistoryPage = () => {
     const [loading, setLoading] = useState(true);
     
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const [modalMode, setModalMode] = useState('create'); 
+    const [modalMode, setModalMode] = useState('create');
     const [saving, setSaving] = useState(false);
     const [uploadingImages, setUploadingImages] = useState(false);
     const [imagenesPreview, setImagenesPreview] = useState([]); // { file, previewUrl }
     const [lightboxUrl, setLightboxUrl] = useState(null);
+    const [mostrarFirma, setMostrarFirma] = useState(false);
     const fileInputRef = useRef(null);
-    
+
     const [currentEntry, setCurrentEntry] = useState({
         id: null,
         fecha: new Date().toISOString().split('T')[0],
         observaciones: '',
         odontograma: {},
         profesionalId: '',
-        imagenesUrls: []
+        imagenesUrls: [],
+        firmaDigital: null
     });
 
     const loadData = async () => {
@@ -72,9 +79,11 @@ const PatientHistoryPage = () => {
             observaciones: '',
             odontograma: ultimoOdontograma || {},
             profesionalId: user?.id || '',
-            imagenesUrls: []
+            imagenesUrls: [],
+            firmaDigital: null
         });
         setImagenesPreview([]);
+        setMostrarFirma(false);
         setIsModalOpen(true);
     };
 
@@ -86,9 +95,11 @@ const PatientHistoryPage = () => {
             observaciones: consulta.observaciones || '',
             odontograma: consulta.odontograma || {},
             profesionalId: consulta.profesionalId || '',
-            imagenesUrls: consulta.imagenesUrls || []
+            imagenesUrls: consulta.imagenesUrls || [],
+            firmaDigital: consulta.firmaDigital || null
         });
         setImagenesPreview([]);
+        setMostrarFirma(false);
         setIsModalOpen(true);
     };
 
@@ -206,8 +217,8 @@ const PatientHistoryPage = () => {
                         <ArrowLeft className="w-4 h-4" /> Volver al buscador
                     </button>
 
-                    <div className="bg-white dark:bg-slate-900 rounded-3xl p-8 shadow-sm border border-slate-200 dark:border-slate-800">
-                        <div className="flex flex-col md:flex-row gap-8 items-start">
+                    <div className="bg-white dark:bg-slate-900 rounded-3xl p-5 md:p-8 shadow-sm border border-slate-200 dark:border-slate-800">
+                        <div className="flex flex-col md:flex-row gap-6 md:gap-8 items-start">
                             <div className="w-24 h-24 rounded-2xl bg-[#517A91] flex items-center justify-center text-white text-4xl font-black shadow-xl overflow-hidden">
                                 {patient.fotoUrl ? (
                                     <img src={patient.fotoUrl} alt={patient.nombre} className="w-full h-full object-cover" />
@@ -237,11 +248,11 @@ const PatientHistoryPage = () => {
                     </div>
 
                     <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 overflow-hidden">
-                        <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-slate-800/50">
+                        <div className="p-4 md:p-6 border-b border-slate-100 dark:border-slate-800 flex flex-wrap justify-between items-center gap-3 bg-slate-50/50 dark:bg-slate-800/50">
                             <h3 className="font-bold text-slate-900 dark:text-white flex items-center gap-2">
                                 <FileText className="w-5 h-5 text-indigo-500" /> Historial de Consultas
                             </h3>
-                            <button onClick={handleOpenCreate} className="bg-indigo-600 text-white px-5 py-2.5 rounded-xl text-sm font-black shadow-lg hover:bg-indigo-700 flex items-center gap-2">
+                            <button onClick={handleOpenCreate} className="bg-indigo-600 text-white px-4 md:px-5 py-2.5 rounded-xl text-sm font-black shadow-lg hover:bg-indigo-700 flex items-center gap-2">
                                 <Plus className="w-4 h-4" /> Nueva Entrada
                             </button>
                         </div>
@@ -257,7 +268,7 @@ const PatientHistoryPage = () => {
                                                 <Clock className="w-4 h-4" />
                                             </div>
                                             <span className="font-black text-slate-900 dark:text-white">
-                                                {c.fecha ? format(new Date(c.fecha), "dd 'de' MMMM, yyyy", { locale: es }) : 'Fecha no disponible'}
+                                                {c.fecha ? format(fechaLocal(c.fecha), "dd 'de' MMMM, yyyy", { locale: es }) : 'Fecha no disponible'}
                                             </span>
                                         </div>
                                         <div className="flex items-center gap-2">
@@ -280,19 +291,19 @@ const PatientHistoryPage = () => {
             </div>
 
             {isModalOpen && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-                    <div className="bg-slate-50 dark:bg-slate-950 w-full max-w-5xl max-h-[90vh] rounded-3xl shadow-2xl overflow-hidden flex flex-col border border-white/10">
-                        <div className="p-6 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center bg-white dark:bg-slate-900">
-                            <div>
-                                <h2 className="text-xl font-black text-slate-900 dark:text-white">
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-2 md:p-4 bg-black/60 backdrop-blur-sm">
+                    <div className="bg-slate-50 dark:bg-slate-950 w-full max-w-6xl h-[96dvh] md:h-[95vh] rounded-2xl md:rounded-3xl shadow-2xl overflow-hidden flex flex-col border border-white/10">
+                        <div className="p-4 md:p-6 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center gap-2 bg-white dark:bg-slate-900 flex-shrink-0">
+                            <div className="min-w-0">
+                                <h2 className="text-lg md:text-xl font-black text-slate-900 dark:text-white truncate">
                                     {modalMode === 'create' ? 'Nueva Entrada' : modalMode === 'edit' ? 'Editando Consulta' : 'Detalle Histórico'}
                                 </h2>
-                                <p className="text-xs text-slate-500 font-bold uppercase tracking-widest mt-1">Paciente: {patient.nombre}</p>
+                                <p className="text-xs text-slate-500 font-bold uppercase tracking-widest mt-1 truncate">Paciente: {patient.nombre} {patient.apellido || ''}</p>
                             </div>
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 shrink-0">
                                 {modalMode === 'view' && (
-                                    <button onClick={() => setModalMode('edit')} className="flex items-center gap-2 bg-amber-500 text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-amber-600 transition-all">
-                                        <Edit3 className="w-3.5 h-3.5" /> Editar este registro
+                                    <button onClick={() => setModalMode('edit')} className="flex items-center gap-2 bg-amber-500 text-white px-3 md:px-4 py-2 rounded-xl text-xs font-bold hover:bg-amber-600 transition-all">
+                                        <Edit3 className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Editar este registro</span><span className="sm:hidden">Editar</span>
                                     </button>
                                 )}
                                 <button onClick={() => setIsModalOpen(false)} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full">
@@ -301,7 +312,7 @@ const PatientHistoryPage = () => {
                             </div>
                         </div>
 
-                        <div className="flex-1 overflow-y-auto p-6 space-y-8 custom-scrollbar">
+                        <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6 md:space-y-8 custom-scrollbar min-h-0">
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                                 <div className="flex flex-col gap-2">
                                     <label className="text-xs font-black text-slate-400 uppercase tracking-tighter">Fecha</label>
@@ -366,11 +377,10 @@ const PatientHistoryPage = () => {
                                         {imagenesPreview.map((img, i) => (
                                             <div key={i} className="relative group rounded-xl overflow-hidden border-2 border-indigo-300 dark:border-indigo-700 aspect-square">
                                                 <img src={img.previewUrl} alt="preview" className="w-full h-full object-cover" />
-                                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                                    <button onClick={() => handleRemovePreview(i)} className="p-1.5 bg-rose-500 rounded-full text-white">
-                                                        <X className="w-3.5 h-3.5" />
-                                                    </button>
-                                                </div>
+                                                {/* En táctil el botón de quitar queda siempre visible */}
+                                                <button onClick={() => handleRemovePreview(i)} className="absolute -top-0 -right-0 m-1 p-1.5 bg-rose-500 rounded-full text-white shadow-lg lg:opacity-0 lg:group-hover:opacity-100 transition-opacity z-10">
+                                                    <X className="w-3.5 h-3.5" />
+                                                </button>
                                                 <div className="absolute bottom-1 left-1 bg-indigo-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded">NUEVA</div>
                                             </div>
                                         ))}
@@ -409,12 +419,50 @@ const PatientHistoryPage = () => {
                                     <p className="text-xs text-slate-400 italic">No hay imágenes adjuntas.</p>
                                 )}
                             </div>
+
+                            {/* FIRMA DIGITAL */}
+                            <div className="space-y-3 pt-2">
+                                {modalMode === 'view' ? (
+                                    currentEntry.firmaDigital && (
+                                        <div className="space-y-2">
+                                            <label className="text-xs font-black text-slate-400 uppercase tracking-tighter flex items-center gap-2">
+                                                <PenLine className="w-3.5 h-3.5" /> Firma Digital
+                                            </label>
+                                            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-3 inline-block">
+                                                <img src={currentEntry.firmaDigital} alt="Firma digital" className="max-h-28 w-auto" />
+                                            </div>
+                                        </div>
+                                    )
+                                ) : (
+                                    <>
+                                        <button
+                                            type="button"
+                                            onClick={() => setMostrarFirma(v => !v)}
+                                            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold border transition-all ${mostrarFirma ? 'bg-indigo-600 text-white border-indigo-600 shadow-md' : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-indigo-400'}`}
+                                        >
+                                            <PenLine className="w-4 h-4" />
+                                            Firma Digital
+                                            {currentEntry.firmaDigital && !mostrarFirma && (
+                                                <span className="ml-1 text-[10px] font-black bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full">✓ Firmado</span>
+                                            )}
+                                        </button>
+
+                                        {mostrarFirma && (
+                                            <div className="bg-slate-50 dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800">
+                                                <SignatureCanvas
+                                                    onChange={(dataUrl) => setCurrentEntry(prev => ({ ...prev, firmaDigital: dataUrl }))}
+                                                />
+                                            </div>
+                                        )}
+                                    </>
+                                )}
+                            </div>
                         </div>
 
-                        <div className="p-6 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex justify-end gap-4">
-                            <button onClick={() => setIsModalOpen(false)} className="px-6 py-3 text-slate-500 font-bold hover:text-slate-700">Cerrar</button>
+                        <div className="p-4 md:p-6 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex justify-end gap-3 md:gap-4 flex-shrink-0">
+                            <button onClick={() => setIsModalOpen(false)} className="px-4 md:px-6 py-3 text-slate-500 font-bold hover:text-slate-700">Cerrar</button>
                             {(modalMode === 'create' || modalMode === 'edit') && (
-                                <button onClick={handleSave} disabled={saving} className="bg-indigo-600 text-white px-10 py-3 rounded-2xl font-black shadow-xl hover:bg-indigo-700 disabled:opacity-50 flex items-center gap-2 transition-all active:scale-95">
+                                <button onClick={handleSave} disabled={saving} className="bg-indigo-600 text-white px-6 md:px-10 py-3 rounded-2xl font-black shadow-xl hover:bg-indigo-700 disabled:opacity-50 flex items-center justify-center gap-2 transition-all active:scale-95">
                                     {saving ? "Guardando..." : <><Check className="w-5 h-5" /> {modalMode === 'create' ? 'Guardar Consulta' : 'Guardar Cambios'}</>}
                                 </button>
                             )}

@@ -33,8 +33,10 @@ const ProfessionalListPage = () => {
   );
 
   const headerActions = (
-    <button onClick={() => navigate('/nuevo-profesional')} className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 shadow-md font-bold text-sm">
-      <UserPlus className="w-4 h-4" /> Nuevo Profesional
+    <button onClick={() => navigate('/nuevo-profesional')} className="flex items-center gap-2 bg-indigo-600 text-white px-3 md:px-4 py-2 rounded-lg hover:bg-indigo-700 shadow-md font-bold text-sm">
+      <UserPlus className="w-4 h-4" />
+      <span className="hidden sm:inline">Nuevo Profesional</span>
+      <span className="sm:hidden">Nuevo</span>
     </button>
   );
 
@@ -47,7 +49,7 @@ const ProfessionalListPage = () => {
         </div>
 
         <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200 dark:border-slate-800 flex-1 overflow-auto custom-scrollbar">
-          <table className="w-full text-left border-collapse">
+          <table className="w-full min-w-[640px] text-left border-collapse">
             <thead>
               <tr className="bg-slate-50 dark:bg-slate-800/50">
                 <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase">Profesional</th>
@@ -57,7 +59,8 @@ const ProfessionalListPage = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-              {loading ? <tr><td colSpan="4" className="text-center py-10 text-slate-400">Cargando...</td></tr> : 
+              {loading ? <tr><td colSpan="4" className="text-center py-10 text-slate-400">Cargando...</td></tr> :
+               filtered.length === 0 ? <tr><td colSpan="4" className="text-center py-10 text-slate-400">No se encontraron profesionales.</td></tr> :
                filtered.map(p => (
                 <tr key={p.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 group">
                   <td className="px-6 py-4">
@@ -69,7 +72,8 @@ const ProfessionalListPage = () => {
                   <td className="px-6 py-4 text-slate-500 text-sm">{p.email}</td>
                   <td className="px-6 py-4 text-slate-500 text-sm">{p.especialidad || '-'}</td>
                   <td className="px-6 py-4 text-right">
-                    <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    {/* En táctil no existe hover: las acciones quedan siempre visibles en pantallas chicas */}
+                    <div className="flex justify-end gap-1 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
                       <button onClick={() => navigate(`/profesionales/${p.id}/editar`)} className="p-2 text-amber-500 hover:bg-amber-50 rounded-lg"><Edit3 className="w-4 h-4" /></button>
                       <button onClick={() => handleDelete(p.id, p.nombre)} className="p-2 text-rose-600 hover:bg-rose-50 rounded-lg"><Trash2 className="w-4 h-4" /></button>
                     </div>

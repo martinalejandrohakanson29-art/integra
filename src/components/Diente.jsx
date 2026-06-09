@@ -7,15 +7,15 @@ const Diente = ({ numero, estado = {}, herramientaActual = 'blue', onChange }) =
     const nuevoEstado = { ...estado };
 
     if (herramientaActual === 'x-red') {
-      // Si ya tiene cruz roja, se la quitamos (toggle). Si no, se la ponemos.
       nuevoEstado.marcaX = nuevoEstado.marcaX === 'red' ? null : 'red';
     } else if (herramientaActual === 'x-blue') {
-      // Si ya tiene cruz azul, se la quitamos. Si no, se la ponemos.
       nuevoEstado.marcaX = nuevoEstado.marcaX === 'blue' ? null : 'blue';
+    } else if (herramientaActual === 'circle') {
+      nuevoEstado.marcaCirculo = nuevoEstado.marcaCirculo ? null : true;
     } else if (herramientaActual === 'borrar') {
-      // Borramos la sección tocada y también la cruz por si acaso
       nuevoEstado[seccion] = null;
       nuevoEstado.marcaX = null;
+      nuevoEstado.marcaCirculo = null;
     } else {
       // Si la herramienta es 'blue' o 'red' (Pintar)
       const valorActual = nuevoEstado[seccion];
@@ -60,11 +60,18 @@ const Diente = ({ numero, estado = {}, herramientaActual = 'blue', onChange }) =
           <rect x="25" y="25" width="50" height="50" onClick={() => handleClic('centro')} className={`${getStyle('centro')} transition-colors hover:brightness-90`} />
         </svg>
         
-        {/* SVG de la Cruz (X) Superpuesta. Se muestra solo si marcaX tiene valor */}
+        {/* Cruz (X) superpuesta */}
         {estado.marcaX && (
             <svg viewBox="0 0 100 100" className="w-full h-full absolute inset-0 z-20 pointer-events-none">
                 <line x1="15" y1="15" x2="85" y2="85" stroke={estado.marcaX === 'red' ? '#f43f5e' : '#6366f1'} strokeWidth="8" strokeLinecap="round" />
                 <line x1="85" y1="15" x2="15" y2="85" stroke={estado.marcaX === 'red' ? '#f43f5e' : '#6366f1'} strokeWidth="8" strokeLinecap="round" />
+            </svg>
+        )}
+
+        {/* Círculo superpuesto */}
+        {estado.marcaCirculo && (
+            <svg viewBox="0 0 100 100" className="w-full h-full absolute inset-0 z-20 pointer-events-none">
+                <circle cx="50" cy="50" r="38" fill="none" stroke="#10b981" strokeWidth="8" strokeLinecap="round" />
             </svg>
         )}
       </div>

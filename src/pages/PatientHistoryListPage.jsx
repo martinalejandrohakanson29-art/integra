@@ -24,8 +24,8 @@ const PatientHistoryListPage = () => {
     loadPatients();
   }, []);
 
-  const filteredPatients = patients.filter(p => 
-    p.nombre.toLowerCase().includes(searchTerm.toLowerCase()) || p.dni.includes(searchTerm)
+  const filteredPatients = (Array.isArray(patients) ? patients : []).filter(p =>
+    `${p.nombre} ${p.apellido || ''}`.toLowerCase().includes(searchTerm.toLowerCase()) || p.dni.includes(searchTerm)
   );
 
   return (
@@ -60,7 +60,7 @@ const PatientHistoryListPage = () => {
                     <User className="w-6 h-6" />
                   </div>
                   <div className="flex-1">
-                    <h3 className="font-bold text-slate-900 dark:text-white group-hover:text-indigo-600 transition-colors">{p.nombre}</h3>
+                    <h3 className="font-bold text-slate-900 dark:text-white group-hover:text-indigo-600 transition-colors">{p.nombre} {p.apellido || ''}</h3>
                     <p className="text-sm text-slate-500 font-mono">DNI: {p.dni}</p>
                     <div className="mt-4 flex items-center text-xs font-bold text-indigo-600 uppercase tracking-wider gap-1">
                       <FolderOpen className="w-3 h-3" /> Ver Historia Clínica

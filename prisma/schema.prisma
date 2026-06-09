@@ -33,6 +33,8 @@ model Paciente {
   direccion       String?
   colorType       String     @default("default")
   fotoUrl         String?
+  firmaDigital    String?
+  obraSocial      String?
   tieneAlergias        Boolean @default(false)
   tieneProbCardiacos   Boolean @default(false)
   tieneHipertension    Boolean @default(false)
@@ -80,6 +82,7 @@ model Consulta {
   notas          String?
   odontogramaData Json?
   imagenesUrls   Json?
+  firmaDigital   String?
   costo          Decimal?    @db.Decimal(10, 2)
   
   pacienteId     Int
