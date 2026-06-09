@@ -3,13 +3,23 @@ import { useNavigate, useParams } from 'react-router-dom';
 import MainLayout from '../components/MainLayout';
 import Odontograma from '../components/Odontograma';
 import SignatureCanvas from '../components/SignatureCanvas';
-import { Calendar, Phone, Activity, ArrowLeft, FileText, X, Plus, Clock, Eye, Trash2, Edit3, Check, Stethoscope, ImagePlus, ZoomIn, PenLine } from 'lucide-react';
+import { Calendar, Phone, Activity, ArrowLeft, FileText, X, Plus, Clock, Eye, Trash2, Edit3, Check, Stethoscope, ImagePlus, ZoomIn, PenLine, Mail, MapPin, CreditCard, ShieldCheck } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
 // Las fechas vienen como ISO UTC ("2026-06-09T00:00:00.000Z"): si se parsean directo,
 // en husos horarios negativos se muestra el día anterior. Usamos solo la parte de fecha.
 const fechaLocal = (iso) => new Date(`${String(iso).split('T')[0]}T00:00:00`);
+
+const calcularEdad = (iso) => {
+    if (!iso) return null;
+    const nac = fechaLocal(iso);
+    const hoy = new Date();
+    let edad = hoy.getFullYear() - nac.getFullYear();
+    const m = hoy.getMonth() - nac.getMonth();
+    if (m < 0 || (m === 0 && hoy.getDate() < nac.getDate())) edad--;
+    return edad;
+};
 
 const PatientHistoryPage = () => {
     const { id } = useParams();
@@ -200,8 +210,8 @@ const PatientHistoryPage = () => {
         <MainLayout title="Error">
             <div className="p-10 text-center flex flex-col items-center gap-4">
                 <p className="text-slate-500 font-bold">No se encontró el paciente solicitado.</p>
-                <button onClick={() => navigate('/historia-clinica')} className="bg-indigo-600 text-white px-6 py-2 rounded-lg font-bold shadow-lg">
-                    Volver al buscador
+                <button onClick={() => navigate('/pacientes')} className="bg-indigo-600 text-white px-6 py-2 rounded-lg font-bold shadow-lg">
+                    Volver a Pacientes
                 </button>
             </div>
         </MainLayout>
@@ -209,39 +219,98 @@ const PatientHistoryPage = () => {
 
     return (
         <>
-        <MainLayout title={patient.nombre + " " + (patient.apellido || "")} activePage="historia">
+        <MainLayout title={patient.nombre + " " + (patient.apellido || "")} activePage="pacientes">
             <div className="h-full overflow-y-auto pr-2 custom-scrollbar">
                 <div className="max-w-6xl mx-auto space-y-6 pb-20">
                     
-                    <button onClick={() => navigate('/historia-clinica')} className="flex items-center gap-2 text-slate-500 hover:text-indigo-600 transition-colors font-bold text-sm mb-2">
-                        <ArrowLeft className="w-4 h-4" /> Volver al buscador
+                    <button onClick={() => navigate('/pacientes')} className="flex items-center gap-2 text-slate-500 hover:text-indigo-600 transition-colors font-bold text-sm mb-2">
+                        <ArrowLeft className="w-4 h-4" /> Volver a Pacientes
                     </button>
 
-                    <div className="bg-white dark:bg-slate-900 rounded-3xl p-5 md:p-8 shadow-sm border border-slate-200 dark:border-slate-800">
-                        <div className="flex flex-col md:flex-row gap-6 md:gap-8 items-start">
-                            <div className="w-24 h-24 rounded-2xl bg-[#517A91] flex items-center justify-center text-white text-4xl font-black shadow-xl overflow-hidden">
-                                {patient.fotoUrl ? (
-                                    <img src={patient.fotoUrl} alt={patient.nombre} className="w-full h-full object-cover" />
-                                ) : (
-                                    patient.nombre.charAt(0)
-                                )}
+                    <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden">
+                        <div className="px-5 md:px-8 py-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/50 flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-2">
+                                <Stethoscope className="w-5 h-5 text-indigo-500" />
+                                <h3 className="font-bold text-slate-900 dark:text-white">Ficha Médica</h3>
                             </div>
-                            <div className="flex-1 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                <div>
-                                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Documento</label>
-                                    <p className="text-slate-900 dark:text-white font-bold text-lg">{patient.dni}</p>
+                            <button onClick={() => navigate(`/pacientes/${id}/editar`)} className="flex items-center gap-2 bg-amber-500 text-white px-3 md:px-4 py-2 rounded-xl text-xs font-bold hover:bg-amber-600 transition-all shadow-sm">
+                                <Edit3 className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Editar datos</span><span className="sm:hidden">Editar</span>
+                            </button>
+                        </div>
+                        <div className="p-5 md:p-8 space-y-6">
+                            <div className="flex flex-col md:flex-row gap-6 md:gap-8 items-start">
+                                <div className="w-24 h-24 shrink-0 rounded-2xl bg-[#517A91] flex items-center justify-center text-white text-4xl font-black shadow-xl overflow-hidden">
+                                    {patient.fotoUrl ? (
+                                        <img src={patient.fotoUrl} alt={patient.nombre} className="w-full h-full object-cover" />
+                                    ) : (
+                                        patient.nombre.charAt(0)
+                                    )}
                                 </div>
-                                <div>
-                                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Obra Social</label>
-                                    <p className="text-indigo-600 dark:text-indigo-400 font-bold">{patient.obraSocial || 'Particular'}</p>
+                                <div className="flex-1 w-full grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-5">
+                                    <div>
+                                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5"><CreditCard className="w-3 h-3" /> Documento (DNI)</label>
+                                        <p className="text-slate-900 dark:text-white font-bold text-lg">{patient.dni}</p>
+                                    </div>
+                                    <div>
+                                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5"><Calendar className="w-3 h-3" /> Fecha de Nacimiento</label>
+                                        <p className="text-slate-900 dark:text-white font-bold">
+                                            {patient.fechaNacimiento ? format(fechaLocal(patient.fechaNacimiento), "dd/MM/yyyy") : '—'}
+                                            {calcularEdad(patient.fechaNacimiento) !== null && (
+                                                <span className="ml-2 text-xs font-bold text-slate-400">({calcularEdad(patient.fechaNacimiento)} años)</span>
+                                            )}
+                                        </p>
+                                    </div>
+                                    <div>
+                                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5"><ShieldCheck className="w-3 h-3" /> Obra Social</label>
+                                        <p className="text-indigo-600 dark:text-indigo-400 font-bold">{patient.obraSocial || 'Particular'}</p>
+                                    </div>
+                                    <div>
+                                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5"><Phone className="w-3 h-3" /> Teléfono / WhatsApp</label>
+                                        <p className="text-slate-900 dark:text-white font-bold">{patient.telefono || '—'}</p>
+                                    </div>
+                                    <div>
+                                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5"><Mail className="w-3 h-3" /> Email</label>
+                                        <p className="text-slate-900 dark:text-white font-bold break-all">{patient.email || '—'}</p>
+                                    </div>
+                                    <div>
+                                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5"><MapPin className="w-3 h-3" /> Dirección</label>
+                                        <p className="text-slate-900 dark:text-white font-bold">{patient.direccion || '—'}</p>
+                                    </div>
                                 </div>
-                                <div className="lg:col-span-3 p-4 bg-rose-50 dark:bg-rose-900/20 rounded-2xl border border-rose-100 dark:border-rose-800">
-                                    <label className="text-[10px] font-bold text-rose-600 uppercase tracking-widest flex items-center gap-2 mb-1">
-                                      <Activity className="w-3 h-3" /> Antecedentes
-                                    </label>
-                                    <p className="text-slate-700 dark:text-slate-200 text-sm italic">
-                                        {patient.observacionesAnamnesis || patient.antecedentes || 'Sin registros médicos previos.'}
-                                    </p>
+                            </div>
+
+                            <div className="bg-indigo-50/50 dark:bg-indigo-900/10 rounded-2xl border border-indigo-100 dark:border-indigo-800 overflow-hidden">
+                                <div className="px-4 md:px-5 py-3 border-b border-indigo-100 dark:border-indigo-800 flex items-center gap-2">
+                                    <Activity className="w-4 h-4 text-indigo-600" />
+                                    <h4 className="font-bold text-indigo-900 dark:text-indigo-300 text-sm">Anamnesis Inicial</h4>
+                                </div>
+                                <div className="p-4 md:p-5 space-y-4">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                                        {[
+                                            { label: '¿Tiene alergias?', value: patient.tieneAlergias },
+                                            { label: '¿Tiene problemas cardíacos?', value: patient.tieneProbCardiacos },
+                                            { label: '¿Sufre de hipertensión?', value: patient.tieneHipertension },
+                                            { label: '¿Tiene diabetes?', value: patient.tieneDiabetes },
+                                            { label: '¿Toma alguna medicación?', value: patient.tomaMedicacion },
+                                            { label: '¿Está embarazada?', value: patient.estaEmbarazada },
+                                            { label: '¿Otros antecedentes?', value: patient.otrosAntecedentes },
+                                        ].map((item) => (
+                                            <div key={item.label} className="flex items-center justify-between gap-3 bg-white dark:bg-slate-900 rounded-xl px-4 py-2.5 border border-slate-100 dark:border-slate-800">
+                                                <span className="text-slate-700 dark:text-slate-300 text-sm font-medium">{item.label}</span>
+                                                {item.value ? (
+                                                    <span className="shrink-0 text-[11px] font-black uppercase tracking-wider bg-rose-100 dark:bg-rose-900/40 text-rose-600 dark:text-rose-400 px-2.5 py-1 rounded-full">Sí</span>
+                                                ) : (
+                                                    <span className="shrink-0 text-[11px] font-black uppercase tracking-wider bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 px-2.5 py-1 rounded-full">No</span>
+                                                )}
+                                            </div>
+                                        ))}
+                                    </div>
+                                    <div className="p-4 bg-white dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800">
+                                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Observaciones / Antecedentes</label>
+                                        <p className="text-slate-700 dark:text-slate-200 text-sm italic">
+                                            {patient.observacionesAnamnesis || patient.antecedentes || 'Sin registros médicos previos.'}
+                                        </p>
+                                    </div>
                                 </div>
                             </div>
                         </div>

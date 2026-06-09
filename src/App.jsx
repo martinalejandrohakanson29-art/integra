@@ -5,7 +5,6 @@ import AgendaPage from './pages/AgendaPage';
 import PatientListPage from './pages/PatientListPage';
 import NewPatientPage from './pages/NewPatientPage';
 import EditPatientPage from './pages/EditPatientPage';
-import PatientHistoryListPage from './pages/PatientHistoryListPage';
 import PatientHistoryPage from './pages/PatientHistoryPage';
 
 // NUEVAS PÁGINAS DE PROFESIONALES
@@ -24,7 +23,8 @@ function App() {
         <Route path="/nuevo-paciente" element={<NewPatientPage />} />
         <Route path="/pacientes/:id/editar" element={<EditPatientPage />} />
         
-        <Route path="/historia-clinica" element={<PatientHistoryListPage />} />
+        {/* /historia-clinica se unificó en /pacientes: redirigimos por si quedó algún enlace guardado */}
+        <Route path="/historia-clinica" element={<Navigate to="/pacientes" replace />} />
         <Route path="/pacientes/:id/historia" element={<PatientHistoryPage />} />
 
         {/* RUTAS DE PROFESIONALES */}

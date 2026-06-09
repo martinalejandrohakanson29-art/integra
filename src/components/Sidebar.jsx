@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Calendar, Users, FileText, Briefcase, X } from 'lucide-react';
+import { Calendar, Users, Briefcase, X } from 'lucide-react';
 
 const Sidebar = ({ activePage, isOpen, onClose }) => {
     const navigate = useNavigate();
@@ -37,10 +37,6 @@ const Sidebar = ({ activePage, isOpen, onClose }) => {
                     <Link onClick={onClose} to="/pacientes" className={`flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl transition-colors ${activePage === 'pacientes' ? 'bg-white/20' : 'hover:bg-white/10'}`}>
                         <Users className="w-5 h-5 shrink-0" />
                         <span className="truncate">Pacientes</span>
-                    </Link>
-                    <Link onClick={onClose} to="/historia-clinica" className={`flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl transition-colors ${activePage === 'historia' ? 'bg-white/20' : 'hover:bg-white/10'}`}>
-                        <FileText className="w-5 h-5 shrink-0" />
-                        <span className="truncate">Historias Clínicas</span>
                     </Link>
                     <Link onClick={onClose} to="/profesionales" className={`flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-xl transition-colors ${activePage === 'profesionales' ? 'bg-white/20' : 'hover:bg-white/10'}`}>
                         <Briefcase className="w-5 h-5 shrink-0" />

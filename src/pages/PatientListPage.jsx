@@ -29,7 +29,8 @@ const PatientListPage = () => {
 
   useEffect(() => { loadPatients(); }, []);
 
-  const handleDelete = async (id, name) => {
+  const handleDelete = async (id, name, e) => {
+    e.stopPropagation();
     if (window.confirm(`¿Estás seguro de eliminar a ${name}?`)) {
       try {
         const res = await fetch(`/api/pacientes/${id}`, { method: 'DELETE' });
@@ -87,8 +88,14 @@ const PatientListPage = () => {
                 {loading ? (
                   <tr><td colSpan="4" className="text-center py-10 text-slate-400">Cargando base de datos...</td></tr>
                 ) : filteredPatients.map(p => (
-                  <tr key={p.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors group">
-                    <td className="px-6 py-4">
+                  <tr key={p.id} onClick={() => navigate(`/pacientes/${p.id}/historia`)} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors group cursor-pointer" title="Ver Historia Clínica">
+                    <td className="px-6 py-4 relative">
+                      {/* Indicador del color del paciente en la agenda */}
+                      <div className={`absolute left-0 top-0 w-1 h-full ${
+                        p.colorType === 'green' ? 'bg-emerald-400' :
+                        p.colorType === 'amber' ? 'bg-amber-400' :
+                        p.colorType === 'red' ? 'bg-rose-400' : 'bg-indigo-400'
+                      }`} />
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded-full bg-indigo-100 dark:bg-indigo-900/40 flex items-center justify-center text-indigo-600 font-bold text-xs overflow-hidden">
                           {p.fotoUrl ? (
@@ -97,7 +104,7 @@ const PatientListPage = () => {
                             p.nombre.charAt(0)
                           )}
                         </div>
-                        <span className="font-semibold text-slate-900 dark:text-white text-sm">{p.nombre} {p.apellido || ''}</span>
+                        <span className="font-semibold text-slate-900 dark:text-white text-sm group-hover:text-indigo-600 transition-colors">{p.nombre} {p.apellido || ''}</span>
                       </div>
                     </td>
                     <td className="px-6 py-4 text-slate-500 text-sm font-mono">{p.dni}</td>
@@ -110,13 +117,13 @@ const PatientListPage = () => {
                     <td className="px-6 py-4 text-right">
                       {/* En táctil no existe hover: las acciones quedan siempre visibles en pantallas chicas */}
                       <div className="flex justify-end gap-1 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
-                        <button onClick={() => navigate(`/pacientes/${p.id}/historia`)} className="p-2 text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-lg" title="Historia Clínica">
+                        <button onClick={(e) => { e.stopPropagation(); navigate(`/pacientes/${p.id}/historia`); }} className="p-2 text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-lg" title="Historia Clínica">
                           <FileText className="w-4 h-4" />
                         </button>
-                        <button onClick={() => navigate(`/pacientes/${p.id}/editar`)} className="p-2 text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/30 rounded-lg" title="Editar Datos">
+                        <button onClick={(e) => { e.stopPropagation(); navigate(`/pacientes/${p.id}/editar`); }} className="p-2 text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/30 rounded-lg" title="Editar Datos">
                           <Edit3 className="w-4 h-4" />
                         </button>
-                        <button onClick={() => handleDelete(p.id, p.nombre)} className="p-2 text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/30 rounded-lg" title="Eliminar">
+                        <button onClick={(e) => handleDelete(p.id, p.nombre, e)} className="p-2 text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/30 rounded-lg" title="Eliminar">
                           <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
