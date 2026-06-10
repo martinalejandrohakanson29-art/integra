@@ -36,6 +36,9 @@ const PatientHistoryPage = () => {
     const [imagenesPreview, setImagenesPreview] = useState([]); // { file, previewUrl }
     const [lightboxUrl, setLightboxUrl] = useState(null);
     const [mostrarFirma, setMostrarFirma] = useState(false);
+    const [mostrarFirmaPaciente, setMostrarFirmaPaciente] = useState(false);
+    const [firmaPacienteTemp, setFirmaPacienteTemp] = useState(null);
+    const [savingFirma, setSavingFirma] = useState(false);
     const fileInputRef = useRef(null);
 
     const [currentEntry, setCurrentEntry] = useState({
@@ -204,6 +207,27 @@ const PatientHistoryPage = () => {
         }
     };
 
+    const handleSaveFirmaPaciente = async () => {
+        if (!firmaPacienteTemp) return;
+        setSavingFirma(true);
+        try {
+            const res = await fetch(`/api/pacientes/${id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ firmaDigital: firmaPacienteTemp })
+            });
+            if (res.ok) {
+                setPatient(prev => ({ ...prev, firmaDigital: firmaPacienteTemp }));
+                setMostrarFirmaPaciente(false);
+                setFirmaPacienteTemp(null);
+            }
+        } catch {
+            alert('Error al guardar la firma.');
+        } finally {
+            setSavingFirma(false);
+        }
+    };
+
     if (loading) return <MainLayout title="Cargando..."> <div className="p-10 text-center text-slate-400">Buscando ficha médica...</div> </MainLayout>;
     
     if (!patient) return (
@@ -311,6 +335,50 @@ const PatientHistoryPage = () => {
                                             {patient.observacionesAnamnesis || patient.antecedentes || 'Sin registros médicos previos.'}
                                         </p>
                                     </div>
+                                </div>
+                            </div>
+
+                            {/* FIRMA DIGITAL DEL PACIENTE */}
+                            <div className="bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+                                <div className="px-4 md:px-5 py-3 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between gap-2">
+                                    <div className="flex items-center gap-2">
+                                        <PenLine className="w-4 h-4 text-indigo-600" />
+                                        <h4 className="font-bold text-slate-900 dark:text-white text-sm">Firma del Paciente</h4>
+                                    </div>
+                                    {!mostrarFirmaPaciente && (
+                                        <button
+                                            onClick={() => { setMostrarFirmaPaciente(true); setFirmaPacienteTemp(null); }}
+                                            className="text-xs font-bold text-indigo-600 hover:text-indigo-700 transition-colors"
+                                        >
+                                            {patient.firmaDigital ? 'Actualizar firma' : 'Agregar firma'}
+                                        </button>
+                                    )}
+                                </div>
+                                <div className="p-4 md:p-5">
+                                    {mostrarFirmaPaciente ? (
+                                        <div className="space-y-3">
+                                            <SignatureCanvas onChange={(dataUrl) => setFirmaPacienteTemp(dataUrl)} />
+                                            <div className="flex gap-3 justify-end">
+                                                <button
+                                                    onClick={() => { setMostrarFirmaPaciente(false); setFirmaPacienteTemp(null); }}
+                                                    className="px-4 py-2 text-slate-500 font-bold text-sm hover:text-slate-700"
+                                                >Cancelar</button>
+                                                <button
+                                                    onClick={handleSaveFirmaPaciente}
+                                                    disabled={savingFirma || !firmaPacienteTemp}
+                                                    className="bg-indigo-600 text-white px-5 py-2 rounded-xl text-sm font-black hover:bg-indigo-700 disabled:opacity-50 flex items-center gap-2 transition-all"
+                                                >
+                                                    {savingFirma ? 'Guardando...' : <><Check className="w-4 h-4" /> Guardar firma</>}
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ) : patient.firmaDigital ? (
+                                        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 p-3 inline-block">
+                                            <img src={patient.firmaDigital} alt="Firma del paciente" className="max-h-28 w-auto" />
+                                        </div>
+                                    ) : (
+                                        <p className="text-xs text-slate-400 italic">Sin firma registrada.</p>
+                                    )}
                                 </div>
                             </div>
                         </div>
