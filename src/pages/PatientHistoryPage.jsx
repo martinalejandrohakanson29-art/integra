@@ -127,55 +127,110 @@ const PatientHistoryPage = () => {
 
     const handleGeneratePdf = () => {
         const doc = new jsPDF({ unit: 'pt', format: 'a4' });
-        const marginX = 40;
+        const marginX = 48;
+        const marginTop = 56;
+        const marginBottom = 56;
         const pageWidth = doc.internal.pageSize.getWidth();
         const pageHeight = doc.internal.pageSize.getHeight();
         const maxWidth = pageWidth - marginX * 2;
-        let y = 50;
+        const indigo = [79, 70, 229];
+        const grisTexto = [71, 85, 105];
+        const grisClaro = [203, 213, 225];
+        let y = marginTop;
 
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(16);
-        doc.text('Historial de Consultas', marginX, y);
-        y += 22;
+        const centrarTexto = (texto, yPos, fontSize, style = 'normal', color = [15, 23, 42]) => {
+            doc.setFont('helvetica', style);
+            doc.setFontSize(fontSize);
+            doc.setTextColor(...color);
+            const ancho = doc.getTextWidth(texto);
+            doc.text(texto, (pageWidth - ancho) / 2, yPos);
+        };
 
-        doc.setFontSize(11);
-        doc.text(`Paciente: ${patient.nombre} ${patient.apellido || ''}`, marginX, y);
-        y += 16;
-        if (patient.dni) {
-            doc.text(`DNI: ${patient.dni}`, marginX, y);
-            y += 16;
-        }
-        y += 10;
+        const lineaPunteada = (yPos, color = grisClaro) => {
+            doc.setDrawColor(...color);
+            doc.setLineDashPattern([2, 2], 0);
+            doc.line(marginX, yPos, pageWidth - marginX, yPos);
+            doc.setLineDashPattern([], 0);
+        };
 
-        const asegurarEspacio = (alturaNecesaria) => {
-            if (y + alturaNecesaria > pageHeight - 40) {
-                doc.addPage();
-                y = 50;
+        const dibujarPie = () => {
+            const totalPaginas = doc.internal.getNumberOfPages();
+            for (let i = 1; i <= totalPaginas; i++) {
+                doc.setPage(i);
+                lineaPunteada(pageHeight - 36);
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(8);
+                doc.setTextColor(...grisTexto);
+                const textoPie = `Página ${i} de ${totalPaginas}`;
+                const anchoPie = doc.getTextWidth(textoPie);
+                doc.text(textoPie, (pageWidth - anchoPie) / 2, pageHeight - 22);
+                const fechaGeneracion = `Generado el ${format(new Date(), "dd/MM/yyyy HH:mm")}`;
+                doc.text(fechaGeneracion, marginX, pageHeight - 22);
             }
         };
 
+        const asegurarEspacio = (alturaNecesaria) => {
+            if (y + alturaNecesaria > pageHeight - marginBottom) {
+                doc.addPage();
+                y = marginTop;
+            }
+        };
+
+        // TÍTULO
+        centrarTexto('integra', y, 12, 'bold', indigo);
+        y += 20;
+        centrarTexto('Historial de Consultas', y, 18, 'bold');
+        y += 12;
+        doc.setDrawColor(...indigo);
+        doc.setLineWidth(1.2);
+        doc.line(marginX, y, pageWidth - marginX, y);
+        y += 24;
+
+        // DATOS DEL PACIENTE
+        centrarTexto(`${patient.nombre} ${patient.apellido || ''}`.trim(), y, 12, 'bold');
+        y += 16;
+        if (patient.dni) {
+            centrarTexto(`DNI: ${patient.dni}`, y, 9, 'normal', grisTexto);
+            y += 14;
+        }
+        y += 10;
+        lineaPunteada(y, indigo);
+        y += 26;
+
         if (consultas.length === 0) {
             doc.setFont('helvetica', 'normal');
+            doc.setFontSize(10);
+            doc.setTextColor(...grisTexto);
             doc.text('No hay consultas registradas.', marginX, y);
         }
 
-        consultas.forEach((c) => {
+        consultas.forEach((c, index) => {
             const fechaTexto = c.fecha ? format(fechaLocal(c.fecha), "dd 'de' MMMM, yyyy", { locale: es }) : 'Fecha no disponible';
             const observaciones = c.observaciones || 'Sin observaciones.';
             const lineasObs = doc.splitTextToSize(observaciones, maxWidth);
+            const alturaBloque = 18 + lineasObs.length * 13 + 22;
 
-            asegurarEspacio(16 + lineasObs.length * 14 + 16);
+            asegurarEspacio(alturaBloque);
 
             doc.setFont('helvetica', 'bold');
-            doc.setFontSize(12);
+            doc.setFontSize(11);
+            doc.setTextColor(...indigo);
             doc.text(fechaTexto, marginX, y);
-            y += 16;
+            y += 18;
 
             doc.setFont('helvetica', 'normal');
             doc.setFontSize(10);
+            doc.setTextColor(30, 41, 59);
             doc.text(lineasObs, marginX, y);
-            y += lineasObs.length * 14 + 16;
+            y += lineasObs.length * 13 + 16;
+
+            if (index < consultas.length - 1) {
+                lineaPunteada(y);
+                y += 22;
+            }
         });
+
+        dibujarPie();
 
         doc.save(`historial-${(patient.nombre || 'paciente').replace(/\s+/g, '_')}.pdf`);
     };
