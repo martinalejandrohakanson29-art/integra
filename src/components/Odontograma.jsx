@@ -67,9 +67,14 @@ const Odontograma = ({ data = {}, onChange }) => {
             <X className="w-3.5 h-3.5 text-rose-500 stroke-[3px]" /> Marca Roja
         </button>
 
-        {/* Herramienta: Círculo */}
-        <button type="button" onClick={() => setHerramienta('circle')} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${herramienta === 'circle' ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 ring-2 ring-emerald-500 border-transparent' : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700'}`}>
-            <div className="w-3.5 h-3.5 rounded-full border-2 border-emerald-500"></div> Círculo
+        {/* Herramienta: Círculo Azul */}
+        <button type="button" onClick={() => setHerramienta('circle-blue')} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${herramienta === 'circle-blue' ? 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 ring-2 ring-indigo-500 border-transparent' : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700'}`}>
+            <div className="w-3.5 h-3.5 rounded-full border-2 border-indigo-500"></div> Círculo Azul
+        </button>
+
+        {/* Herramienta: Círculo Rojo */}
+        <button type="button" onClick={() => setHerramienta('circle-red')} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${herramienta === 'circle-red' ? 'bg-rose-100 dark:bg-rose-900/40 text-rose-700 dark:text-rose-300 ring-2 ring-rose-500 border-transparent' : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700'}`}>
+            <div className="w-3.5 h-3.5 rounded-full border-2 border-rose-500"></div> Círculo Rojo
         </button>
 
         <div className="w-px h-6 bg-slate-300 dark:bg-slate-600 mx-1"></div>

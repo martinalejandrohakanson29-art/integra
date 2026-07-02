@@ -10,8 +10,12 @@ const Diente = ({ numero, estado = {}, herramientaActual = 'blue', onChange }) =
       nuevoEstado.marcaX = nuevoEstado.marcaX === 'red' ? null : 'red';
     } else if (herramientaActual === 'x-blue') {
       nuevoEstado.marcaX = nuevoEstado.marcaX === 'blue' ? null : 'blue';
-    } else if (herramientaActual === 'circle') {
-      nuevoEstado.marcaCirculo = nuevoEstado.marcaCirculo ? null : true;
+    } else if (herramientaActual === 'circle-red') {
+      const actual = nuevoEstado.marcaCirculo === true ? 'blue' : nuevoEstado.marcaCirculo;
+      nuevoEstado.marcaCirculo = actual === 'red' ? null : 'red';
+    } else if (herramientaActual === 'circle-blue') {
+      const actual = nuevoEstado.marcaCirculo === true ? 'blue' : nuevoEstado.marcaCirculo;
+      nuevoEstado.marcaCirculo = actual === 'blue' ? null : 'blue';
     } else if (herramientaActual === 'borrar') {
       nuevoEstado[seccion] = null;
       nuevoEstado.marcaX = null;
@@ -71,7 +75,7 @@ const Diente = ({ numero, estado = {}, herramientaActual = 'blue', onChange }) =
         {/* Círculo superpuesto */}
         {estado.marcaCirculo && (
             <svg viewBox="0 0 100 100" className="w-full h-full absolute inset-0 z-20 pointer-events-none">
-                <circle cx="50" cy="50" r="38" fill="none" stroke="#10b981" strokeWidth="8" strokeLinecap="round" />
+                <circle cx="50" cy="50" r="38" fill="none" stroke={estado.marcaCirculo === 'red' ? '#f43f5e' : '#6366f1'} strokeWidth="8" strokeLinecap="round" />
             </svg>
         )}
       </div>
