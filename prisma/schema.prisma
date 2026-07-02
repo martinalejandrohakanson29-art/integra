@@ -74,6 +74,15 @@ enum EstadoTurno {
   AUSENTE
 }
 
+model Presupuesto {
+  id            Int      @id @default(autoincrement())
+  nombreCliente String
+  items         Json
+  total         Decimal  @db.Decimal(10, 2)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @default(now()) @updatedAt
+}
+
 model Consulta {
   id             Int         @id @default(autoincrement())
   fecha          DateTime    @default(now())

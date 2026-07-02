@@ -7,6 +7,7 @@ import { Calendar, Phone, Activity, ArrowLeft, FileText, X, Plus, Clock, Eye, Tr
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import jsPDF from 'jspdf';
+import { crearHelpersPdf, coloresPdf, MARGIN_X, MARGIN_TOP, MARGIN_BOTTOM } from '../utils/pdfEstilos';
 
 // Las fechas vienen como ISO UTC ("2026-06-09T00:00:00.000Z"): si se parsean directo,
 // en husos horarios negativos se muestra el día anterior. Usamos solo la parte de fecha.
@@ -127,81 +128,34 @@ const PatientHistoryPage = () => {
 
     const handleGeneratePdf = () => {
         const doc = new jsPDF({ unit: 'pt', format: 'a4' });
-        const marginX = 48;
-        const marginTop = 56;
-        const marginBottom = 56;
-        const pageWidth = doc.internal.pageSize.getWidth();
-        const pageHeight = doc.internal.pageSize.getHeight();
-        const maxWidth = pageWidth - marginX * 2;
-        const indigo = [79, 70, 229];
-        const grisTexto = [71, 85, 105];
-        const grisClaro = [203, 213, 225];
-        let y = marginTop;
+        const { pageWidth, pageHeight, centrarTexto, lineaPunteada, dibujarEncabezado, dibujarPie } = crearHelpersPdf(doc);
+        const maxWidth = pageWidth - MARGIN_X * 2;
 
-        const centrarTexto = (texto, yPos, fontSize, style = 'normal', color = [15, 23, 42]) => {
-            doc.setFont('helvetica', style);
-            doc.setFontSize(fontSize);
-            doc.setTextColor(...color);
-            const ancho = doc.getTextWidth(texto);
-            doc.text(texto, (pageWidth - ancho) / 2, yPos);
-        };
-
-        const lineaPunteada = (yPos, color = grisClaro) => {
-            doc.setDrawColor(...color);
-            doc.setLineDashPattern([2, 2], 0);
-            doc.line(marginX, yPos, pageWidth - marginX, yPos);
-            doc.setLineDashPattern([], 0);
-        };
-
-        const dibujarPie = () => {
-            const totalPaginas = doc.internal.getNumberOfPages();
-            for (let i = 1; i <= totalPaginas; i++) {
-                doc.setPage(i);
-                lineaPunteada(pageHeight - 36);
-                doc.setFont('helvetica', 'normal');
-                doc.setFontSize(8);
-                doc.setTextColor(...grisTexto);
-                const textoPie = `Página ${i} de ${totalPaginas}`;
-                const anchoPie = doc.getTextWidth(textoPie);
-                doc.text(textoPie, (pageWidth - anchoPie) / 2, pageHeight - 22);
-                const fechaGeneracion = `Generado el ${format(new Date(), "dd/MM/yyyy HH:mm")}`;
-                doc.text(fechaGeneracion, marginX, pageHeight - 22);
-            }
-        };
-
-        const asegurarEspacio = (alturaNecesaria) => {
-            if (y + alturaNecesaria > pageHeight - marginBottom) {
-                doc.addPage();
-                y = marginTop;
-            }
-        };
-
-        // TÍTULO
-        centrarTexto('integra', y, 12, 'bold', indigo);
-        y += 20;
-        centrarTexto('Historial de Consultas', y, 18, 'bold');
-        y += 12;
-        doc.setDrawColor(...indigo);
-        doc.setLineWidth(1.2);
-        doc.line(marginX, y, pageWidth - marginX, y);
-        y += 24;
+        let y = dibujarEncabezado('Historial de Consultas');
 
         // DATOS DEL PACIENTE
         centrarTexto(`${patient.nombre} ${patient.apellido || ''}`.trim(), y, 12, 'bold');
         y += 16;
         if (patient.dni) {
-            centrarTexto(`DNI: ${patient.dni}`, y, 9, 'normal', grisTexto);
+            centrarTexto(`DNI: ${patient.dni}`, y, 9, 'normal', coloresPdf.grisTexto);
             y += 14;
         }
         y += 10;
-        lineaPunteada(y, indigo);
+        lineaPunteada(y, coloresPdf.indigo);
         y += 26;
+
+        const asegurarEspacio = (alturaNecesaria) => {
+            if (y + alturaNecesaria > pageHeight - MARGIN_BOTTOM) {
+                doc.addPage();
+                y = MARGIN_TOP;
+            }
+        };
 
         if (consultas.length === 0) {
             doc.setFont('helvetica', 'normal');
             doc.setFontSize(10);
-            doc.setTextColor(...grisTexto);
-            doc.text('No hay consultas registradas.', marginX, y);
+            doc.setTextColor(...coloresPdf.grisTexto);
+            doc.text('No hay consultas registradas.', MARGIN_X, y);
         }
 
         consultas.forEach((c, index) => {
@@ -214,14 +168,14 @@ const PatientHistoryPage = () => {
 
             doc.setFont('helvetica', 'bold');
             doc.setFontSize(11);
-            doc.setTextColor(...indigo);
-            doc.text(fechaTexto, marginX, y);
+            doc.setTextColor(...coloresPdf.indigo);
+            doc.text(fechaTexto, MARGIN_X, y);
             y += 18;
 
             doc.setFont('helvetica', 'normal');
             doc.setFontSize(10);
-            doc.setTextColor(30, 41, 59);
-            doc.text(lineasObs, marginX, y);
+            doc.setTextColor(...coloresPdf.textoCuerpo);
+            doc.text(lineasObs, MARGIN_X, y);
             y += lineasObs.length * 13 + 16;
 
             if (index < consultas.length - 1) {

@@ -394,6 +394,54 @@ app.delete('/api/consultas/:id', async (req, res) => {
     } catch (error) { res.status(500).json({error: "Error al borrar consulta"}); }
 });
 
+// --- PRESUPUESTOS ---
+app.get('/api/presupuestos', async (req, res) => {
+  try {
+    const presupuestos = await prisma.presupuesto.findMany({ orderBy: { createdAt: 'desc' } });
+    res.json(presupuestos || []);
+  } catch (error) { res.json([]); }
+});
+
+app.get('/api/presupuestos/:id', async (req, res) => {
+  try {
+    const presupuesto = await prisma.presupuesto.findUnique({ where: { id: parseInt(req.params.id) } });
+    if (!presupuesto) return res.status(404).json({ error: 'No encontrado' });
+    res.json(presupuesto);
+  } catch (error) { res.status(500).json({ error: 'Error al buscar el presupuesto' }); }
+});
+
+app.post('/api/presupuestos', async (req, res) => {
+  const { nombreCliente, items } = req.body;
+  try {
+    const itemsLimpios = Array.isArray(items) ? items : [];
+    const total = itemsLimpios.reduce((acc, it) => acc + (parseFloat(it.costo) || 0), 0);
+    const nuevo = await prisma.presupuesto.create({
+      data: { nombreCliente: nombreCliente || '', items: itemsLimpios, total }
+    });
+    res.status(201).json(nuevo);
+  } catch (error) { res.status(500).json({ error: 'Error al guardar el presupuesto.' }); }
+});
+
+app.patch('/api/presupuestos/:id', async (req, res) => {
+  const { nombreCliente, items } = req.body;
+  try {
+    const itemsLimpios = Array.isArray(items) ? items : [];
+    const total = itemsLimpios.reduce((acc, it) => acc + (parseFloat(it.costo) || 0), 0);
+    const actualizado = await prisma.presupuesto.update({
+      where: { id: parseInt(req.params.id) },
+      data: { nombreCliente, items: itemsLimpios, total }
+    });
+    res.json(actualizado);
+  } catch (error) { res.status(500).json({ error: 'Error al actualizar el presupuesto' }); }
+});
+
+app.delete('/api/presupuestos/:id', async (req, res) => {
+  try {
+    await prisma.presupuesto.delete({ where: { id: parseInt(req.params.id) } });
+    res.json({ ok: true });
+  } catch (error) { res.status(500).json({ error: 'Error al eliminar el presupuesto' }); }
+});
+
 // --- ELIMINAR IMAGEN ESPECÍFICA DE CONSULTA ---
 app.delete('/api/consultas/:id/imagenes', async (req, res) => {
   const { url: urlAEliminar } = req.body;
