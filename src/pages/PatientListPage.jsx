@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import MainLayout from '../components/MainLayout';
-import { Search, UserPlus, Trash2, Edit3, Phone, User, FileText } from 'lucide-react';
+import NuevaEntradaModal from '../components/NuevaEntradaModal';
+import { Search, UserPlus, Trash2, Edit3, Phone, User, FileText, Plus } from 'lucide-react';
 
 const PatientListPage = () => {
   const navigate = useNavigate();
   const [patients, setPatients] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
+  const [nuevaEntradaModal, setNuevaEntradaModal] = useState(null);
 
   const loadPatients = async () => {
     try {
@@ -117,6 +119,16 @@ const PatientListPage = () => {
                     <td className="px-6 py-4 text-right">
                       {/* En táctil no existe hover: las acciones quedan siempre visibles en pantallas chicas */}
                       <div className="flex justify-end gap-1 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setNuevaEntradaModal({ patientId: p.id, patientName: `${p.nombre} ${p.apellido || ''}`.trim() });
+                          }}
+                          className="p-2 text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 rounded-lg"
+                          title="Nueva Entrada"
+                        >
+                          <Plus className="w-4 h-4" />
+                        </button>
                         <button onClick={(e) => { e.stopPropagation(); navigate(`/pacientes/${p.id}/historia`); }} className="p-2 text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-lg" title="Historia Clínica">
                           <FileText className="w-4 h-4" />
                         </button>
@@ -138,6 +150,13 @@ const PatientListPage = () => {
           </div>
         </div>
       </div>
+
+      <NuevaEntradaModal
+        patientId={nuevaEntradaModal?.patientId}
+        patientName={nuevaEntradaModal?.patientName}
+        isOpen={!!nuevaEntradaModal}
+        onClose={() => setNuevaEntradaModal(null)}
+      />
     </MainLayout>
   );
 };
