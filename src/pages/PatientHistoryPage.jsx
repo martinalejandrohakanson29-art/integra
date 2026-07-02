@@ -3,9 +3,10 @@ import { useNavigate, useParams } from 'react-router-dom';
 import MainLayout from '../components/MainLayout';
 import Odontograma from '../components/Odontograma';
 import SignatureCanvas from '../components/SignatureCanvas';
-import { Calendar, Phone, Activity, ArrowLeft, FileText, X, Plus, Clock, Eye, Trash2, Edit3, Check, Stethoscope, ImagePlus, ZoomIn, PenLine, Mail, MapPin, CreditCard, ShieldCheck } from 'lucide-react';
+import { Calendar, Phone, Activity, ArrowLeft, FileText, X, Plus, Clock, Eye, Trash2, Edit3, Check, Stethoscope, ImagePlus, ZoomIn, PenLine, Mail, MapPin, CreditCard, ShieldCheck, FileDown } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import jsPDF from 'jspdf';
 
 // Las fechas vienen como ISO UTC ("2026-06-09T00:00:00.000Z"): si se parsean directo,
 // en husos horarios negativos se muestra el día anterior. Usamos solo la parte de fecha.
@@ -122,6 +123,61 @@ const PatientHistoryPage = () => {
             await fetch(`/api/consultas/${consultaId}`, { method: 'DELETE' });
             loadData();
         }
+    };
+
+    const handleGeneratePdf = () => {
+        const doc = new jsPDF({ unit: 'pt', format: 'a4' });
+        const marginX = 40;
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const pageHeight = doc.internal.pageSize.getHeight();
+        const maxWidth = pageWidth - marginX * 2;
+        let y = 50;
+
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(16);
+        doc.text('Historial de Consultas', marginX, y);
+        y += 22;
+
+        doc.setFontSize(11);
+        doc.text(`Paciente: ${patient.nombre} ${patient.apellido || ''}`, marginX, y);
+        y += 16;
+        if (patient.dni) {
+            doc.text(`DNI: ${patient.dni}`, marginX, y);
+            y += 16;
+        }
+        y += 10;
+
+        const asegurarEspacio = (alturaNecesaria) => {
+            if (y + alturaNecesaria > pageHeight - 40) {
+                doc.addPage();
+                y = 50;
+            }
+        };
+
+        if (consultas.length === 0) {
+            doc.setFont('helvetica', 'normal');
+            doc.text('No hay consultas registradas.', marginX, y);
+        }
+
+        consultas.forEach((c) => {
+            const fechaTexto = c.fecha ? format(fechaLocal(c.fecha), "dd 'de' MMMM, yyyy", { locale: es }) : 'Fecha no disponible';
+            const observaciones = c.observaciones || 'Sin observaciones.';
+            const lineasObs = doc.splitTextToSize(observaciones, maxWidth);
+
+            asegurarEspacio(16 + lineasObs.length * 14 + 16);
+
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(12);
+            doc.text(fechaTexto, marginX, y);
+            y += 16;
+
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(10);
+            doc.text(lineasObs, marginX, y);
+            y += lineasObs.length * 14 + 16;
+        });
+
+        doc.save(`historial-${(patient.nombre || 'paciente').replace(/\s+/g, '_')}.pdf`);
     };
 
     const handleImagenesChange = (e) => {
@@ -423,6 +479,14 @@ const PatientHistoryPage = () => {
                                 </div>
                             ))}
                         </div>
+
+                        {consultas.length > 0 && (
+                            <div className="p-4 md:p-6 border-t border-slate-100 dark:border-slate-800 flex justify-center">
+                                <button onClick={handleGeneratePdf} className="flex items-center gap-2 bg-slate-800 dark:bg-slate-700 text-white px-5 py-2.5 rounded-xl text-sm font-black shadow-lg hover:bg-slate-900 dark:hover:bg-slate-600 transition-all">
+                                    <FileDown className="w-4 h-4" /> Generar PDF con todas las entradas
+                                </button>
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>
